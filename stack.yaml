@@ -4,13 +4,19 @@ extra-deps:
   - ansi-terminal-0.8.1
   - ansi-wl-pprint-0.6.8.2
   - colour-2.3.4
+  - erf-2.0.0.0
   - mintty-0.1.2
   - optparse-applicative-0.14.2.0
+  - https://github.com/haskell/primitive/archive/1c1b357ee2e66fd684306e49ef30e453b0abe7c2.zip
+  - QuickCheck-2.12.4
+  - random-1.1
+  - tf-random-0.5
   - transformers-compat-0.6.2
 packages:
   - asterius
   - binaryen
   - ghc-toolkit
+  - wasm-toolkit
 ghc-build: standard
 setup-info:
   ghc:
