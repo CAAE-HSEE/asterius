@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Language.WebAssembly.WireFormat.Orphans
-  ( genSection
+  ( genModule
   ) where
 
 import qualified Data.ByteString.Short as SBS
@@ -317,3 +317,6 @@ genSection =
     , CodeSection <$> listOf genFunction
     , DataSection <$> listOf genData
     ]
+
+genModule :: Gen Module
+genModule = Module <$> listOf genSection

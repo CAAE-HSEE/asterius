@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 
 module Language.WebAssembly.WireFormat
@@ -37,8 +36,19 @@ module Language.WebAssembly.WireFormat
   , Function(..)
   , Data(..)
   , Section(..)
-  , getSection
-  , putSection
+  , Module(..)
+  , getVU32
+  , putVU32
+  , getVS32
+  , putVS32
+  , getVS64
+  , putVS64
+  , getF32
+  , putF32
+  , getF64
+  , putF64
+  , getModule
+  , putModule
   ) where
 
 import Control.Applicative hiding (Const)
@@ -51,6 +61,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Short as SBS
 import Data.Coerce
 import Data.Foldable
+import Data.Int
 import Data.Word
 import Prelude hiding (fail)
 
@@ -132,8 +143,8 @@ getLimits :: Get Limits
 getLimits = do
   b <- getWord8
   case b of
-    0x01 -> Limits <$> getU32 <*> fmap Just getU32
-    0x00 -> Limits <$> getU32 <*> pure Nothing
+    0x01 -> Limits <$> getVU32 <*> fmap Just getVU32
+    0x00 -> Limits <$> getVU32 <*> pure Nothing
     _ -> fail "Language.WebAssembly.WireFormat.getLimits"
 
 putLimits :: Limits -> Put
@@ -141,11 +152,11 @@ putLimits Limits {..} =
   case maxLimit of
     Just _max_limit -> do
       putWord8 0x01
-      putU32 minLimit
-      putU32 _max_limit
+      putVU32 minLimit
+      putVU32 _max_limit
     _ -> do
       putWord8 0x00
-      putU32 minLimit
+      putVU32 minLimit
 
 newtype MemoryType = MemoryType
   { memoryLimits :: Limits
@@ -225,12 +236,12 @@ data MemoryArgument = MemoryArgument
   } deriving (Eq, Show)
 
 getMemoryArgument :: Get MemoryArgument
-getMemoryArgument = MemoryArgument <$> getU32 <*> getU32
+getMemoryArgument = MemoryArgument <$> getVU32 <*> getVU32
 
 putMemoryArgument :: MemoryArgument -> Put
 putMemoryArgument MemoryArgument {..} = do
-  putU32 memoryArgumentAlignment
-  putU32 memoryArgumentOffset
+  putVU32 memoryArgumentAlignment
+  putVU32 memoryArgumentOffset
 
 data Instruction
   = Unreachable
@@ -876,70 +887,70 @@ newtype FunctionTypeIndex =
   deriving (Eq, Show)
 
 getFunctionTypeIndex :: Get FunctionTypeIndex
-getFunctionTypeIndex = coerce getU32
+getFunctionTypeIndex = coerce getVU32
 
 putFunctionTypeIndex :: FunctionTypeIndex -> Put
-putFunctionTypeIndex = coerce putU32
+putFunctionTypeIndex = coerce putVU32
 
 newtype FunctionIndex =
   FunctionIndex Word32
   deriving (Eq, Show)
 
 getFunctionIndex :: Get FunctionIndex
-getFunctionIndex = coerce getU32
+getFunctionIndex = coerce getVU32
 
 putFunctionIndex :: FunctionIndex -> Put
-putFunctionIndex = coerce putU32
+putFunctionIndex = coerce putVU32
 
 newtype TableIndex =
   TableIndex Word32
   deriving (Eq, Show)
 
 getTableIndex :: Get TableIndex
-getTableIndex = coerce getU32
+getTableIndex = coerce getVU32
 
 putTableIndex :: TableIndex -> Put
-putTableIndex = coerce putU32
+putTableIndex = coerce putVU32
 
 newtype MemoryIndex =
   MemoryIndex Word32
   deriving (Eq, Show)
 
 getMemoryIndex :: Get MemoryIndex
-getMemoryIndex = coerce getU32
+getMemoryIndex = coerce getVU32
 
 putMemoryIndex :: MemoryIndex -> Put
-putMemoryIndex = coerce putU32
+putMemoryIndex = coerce putVU32
 
 newtype GlobalIndex =
   GlobalIndex Word32
   deriving (Eq, Show)
 
 getGlobalIndex' :: Get GlobalIndex
-getGlobalIndex' = coerce getU32
+getGlobalIndex' = coerce getVU32
 
 putGlobalIndex :: GlobalIndex -> Put
-putGlobalIndex = coerce putU32
+putGlobalIndex = coerce putVU32
 
 newtype LocalIndex =
   LocalIndex Word32
   deriving (Eq, Show)
 
 getLocalIndex' :: Get LocalIndex
-getLocalIndex' = coerce getU32
+getLocalIndex' = coerce getVU32
 
 putLocalIndex :: LocalIndex -> Put
-putLocalIndex = coerce putU32
+putLocalIndex = coerce putVU32
 
 newtype LabelIndex =
   LabelIndex Word32
   deriving (Eq, Show)
 
 getLabelIndex :: Get LabelIndex
-getLabelIndex = coerce getU32
+getLabelIndex = coerce getVU32
 
 putLabelIndex :: LabelIndex -> Put
-putLabelIndex = coerce putU32
+putLabelIndex = coerce putVU32
 
 data ImportDescription
   = ImportFunction FunctionTypeIndex
@@ -1099,11 +1110,11 @@ data Locals = Locals
   } deriving (Eq, Show)
 
 getLocals :: Get Locals
-getLocals = Locals <$> getU32 <*> getValueType
+getLocals = Locals <$> getVU32 <*> getValueType
 
 putLocals :: Locals -> Put
 putLocals Locals {..} = do
-  putU32 localsCount
+  putVU32 localsCount
   putValueType localsType
 
 data Function = Function
@@ -1154,19 +1165,19 @@ getSection = do
   b <- getWord8
   case b of
     0 -> do
-      l <- getU32
+      l <- getVU32
       CustomSection <$> getCustom l
-    1 -> getU32 *> (TypeSection <$> getVec getFunctionType)
-    2 -> getU32 *> (ImportSection <$> getVec getImport)
-    3 -> getU32 *> (FunctionSection <$> getVec getFunctionTypeIndex)
-    4 -> getU32 *> (TableSection <$> getVec getTable)
-    5 -> getU32 *> (MemorySection <$> getVec getMemory)
-    6 -> getU32 *> (GlobalSection <$> getVec getGlobal)
-    7 -> getU32 *> (ExportSection <$> getVec getExport)
-    8 -> getU32 *> (StartSection <$> getStart)
-    9 -> getU32 *> (ElementSection <$> getVec getElement)
-    10 -> getU32 *> (CodeSection <$> getMany (getU32 *> getFunction))
-    11 -> getU32 *> (DataSection <$> getVec getData)
+    1 -> getVU32 *> (TypeSection <$> getVec getFunctionType)
+    2 -> getVU32 *> (ImportSection <$> getVec getImport)
+    3 -> getVU32 *> (FunctionSection <$> getVec getFunctionTypeIndex)
+    4 -> getVU32 *> (TableSection <$> getVec getTable)
+    5 -> getVU32 *> (MemorySection <$> getVec getMemory)
+    6 -> getVU32 *> (GlobalSection <$> getVec getGlobal)
+    7 -> getVU32 *> (ExportSection <$> getVec getExport)
+    8 -> getVU32 *> (StartSection <$> getStart)
+    9 -> getVU32 *> (ElementSection <$> getVec getElement)
+    10 -> getVU32 *> (CodeSection <$> getMany (getVU32 *> getFunction))
+    11 -> getVU32 *> (DataSection <$> getVec getData)
     _ -> fail "Language.WebAssembly.WireFormat.getSection"
 
 putSection :: Section -> Put
@@ -1209,6 +1220,20 @@ putSection sec =
       putWord8 11
       putWithLength $ putVec putData dataSegments
 
+newtype Module = Module
+  { sections :: [Section]
+  } deriving (Eq, Show)
+
+getModule :: Get Module
+getModule = do
+  for_ [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00] expectWord8
+  Module <$> getMany getSection
+
+putModule :: Module -> Put
+putModule Module {..} = do
+  for_ [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00] putWord8
+  for_ sections putSection
+
 expectWord8 :: Word8 -> Get ()
 expectWord8 x = do
   b <- getWord8
@@ -1218,45 +1243,86 @@ expectWord8 x = do
     ", but got " <>
     show b
 
-getUnsignedLEB ::
-     forall a. (Integral a, Bits a)
-  => Int
-  -> Get a
-getUnsignedLEB bits
-  | bits <= 0 = fail "Language.WebAssembly.WireFormat.getUnsignedLEB"
+getVUN :: Int -> Get Word64
+getVUN n
+  | n <= 0 = fail "Language.WebAssembly.WireFormat.getVUN"
   | otherwise = do
     b <- getWord8
-    let b_masked = b .&. 0x7F
-    if b == b_masked
-      then pure $ fromIntegral b
+    let x = fromIntegral $ b .&. 0x7F
+    if b .&. 0x80 == 0
+      then pure x
       else do
-        r <- getUnsignedLEB (bits - 7)
-        pure $ (r `shiftL` 7) .|. fromIntegral b_masked
+        r <- getVUN (n - 7)
+        pure $ x .|. (r `shiftL` 7)
 
-putUnsignedLEB :: (Integral a, Bits a) => Int -> a -> Put
-putUnsignedLEB bits a
-  | bits <= 0 = error "Language.WebAssembly.WireFormat.putUnsignedLEB"
-  | otherwise =
-    case (a `shiftR` 7, a .&. 0x7F) of
-      (0, r) -> putWord8 $ fromIntegral r
-      (x, r) -> do
-        putWord8 $ fromIntegral r .|. 0x80
-        putUnsignedLEB (bits - 7) x
+getVSN :: Int -> Get Int64
+getVSN n
+  | n <= 0 = fail "Language.WebAssembly.WireFormat.getVSN"
+  | otherwise = do
+    b <- getWord8
+    let x = fromIntegral $ b .&. 0x7F
+    if b .&. 0x80 == 0
+      then pure $
+           if b .&. 0x40 == 0
+             then x
+             else x .|. ((-1) `xor` 0x7F)
+      else do
+        r <- getVSN (n - 7)
+        pure $ x .|. r `shiftL` 7
 
-getU32 :: Get Word32
-getU32 = getUnsignedLEB 32
+putVU64 :: Word64 -> Put
+putVU64 i = do
+  let b = fromIntegral $ i .&. 0x7F
+  if 0 <= i && i < 128
+    then putWord8 b
+    else do
+      putWord8 $ b .|. 0x80
+      putVU64 $ i `shiftR` 7
 
-putU32 :: Word32 -> Put
-putU32 = putUnsignedLEB 32
+putVS64 :: Int64 -> Put
+putVS64 i = do
+  let b = fromIntegral $ i .&. 0x7F
+  if -64 <= i && i < 64
+    then putWord8 b
+    else do
+      putWord8 $ b .|. 0x80
+      putVS64 $ i `shiftR` 7
+
+getVU32 :: Get Word32
+getVU32 = fromIntegral <$> getVUN 32
+
+putVU32 :: Word32 -> Put
+putVU32 = putVU64 . fromIntegral
+
+getVS32 :: Get Int32
+getVS32 = fromIntegral <$> getVSN 64
+
+putVS32 :: Int32 -> Put
+putVS32 = putVS64 . fromIntegral
+
+getVS64 :: Get Int64
+getVS64 = getVSN 64
+
+getF32 :: Get Float
+getF32 = getFloatle
+
+putF32 :: Float -> Put
+putF32 = putFloatle
+
+getF64 :: Get Double
+getF64 = getDoublele
+
+putF64 :: Double -> Put
+putF64 = putDoublele
 
 getVec :: Get a -> Get [a]
 getVec g = do
-  n <- getU32
+  n <- getVU32
   replicateM (fromIntegral n) g
 
 putVec :: (a -> Put) -> [a] -> Put
 putVec p v = do
-  putU32 (fromIntegral (length v) :: Word32)
+  putVU32 (fromIntegral (length v) :: Word32)
   for_ v p
 
 getMany :: Get a -> Get [a]
@@ -1278,11 +1344,11 @@ getVecSBS = SBS.pack <$> getVec getWord8
 
 putVecSBS :: SBS.ShortByteString -> Put
 putVecSBS s = do
-  putU32 $ fromIntegral $ SBS.length s
+  putVU32 $ fromIntegral $ SBS.length s
   putSBS s
 
 putWithLength :: Put -> Put
 putWithLength p = do
   let buf = runPut p
-  putU32 $ fromIntegral $ LBS.length buf
+  putVU32 $ fromIntegral $ LBS.length buf
   putLazyByteString buf
