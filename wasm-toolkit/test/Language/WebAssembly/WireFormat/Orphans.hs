@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Language.WebAssembly.WireFormat.Orphans
   ( genModule
@@ -8,6 +9,7 @@ import qualified Data.ByteString.Short as SBS
 import Data.Coerce
 import Data.Word
 import Language.WebAssembly.WireFormat
+import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 
 genMaybe :: Gen a -> Gen (Maybe a)
@@ -16,11 +18,23 @@ genMaybe g = oneof [pure Nothing, Just <$> g]
 genSBS :: Gen SBS.ShortByteString
 genSBS = SBS.pack <$> listOf chooseAny
 
+instance Arbitrary SBS.ShortByteString where
+  arbitrary = genSBS
+  shrink = map SBS.pack . shrink . SBS.unpack
+
 genName :: Gen Name
 genName = coerce genSBS
 
+instance Arbitrary Name where
+  arbitrary = genName
+  shrink = genericShrink
+
 genValueType :: Gen ValueType
 genValueType = Test.QuickCheck.Gen.elements [I32, I64, F32, F64]
+
+instance Arbitrary ValueType where
+  arbitrary = genValueType
+  shrink = genericShrink
 
 genResultType :: Gen [ValueType]
 genResultType = do
@@ -30,26 +44,58 @@ genResultType = do
 genFunctionType :: Gen FunctionType
 genFunctionType = FunctionType <$> listOf genValueType <*> genResultType
 
+instance Arbitrary FunctionType where
+  arbitrary = genFunctionType
+  shrink = genericShrink
+
 genLimits :: Gen Limits
 genLimits = Limits <$> chooseAny <*> genMaybe chooseAny
+
+instance Arbitrary Limits where
+  arbitrary = genLimits
+  shrink = genericShrink
 
 genMemoryType :: Gen MemoryType
 genMemoryType = coerce genLimits
 
+instance Arbitrary MemoryType where
+  arbitrary = genMemoryType
+  shrink = genericShrink
+
 genElementType :: Gen ElementType
 genElementType = pure AnyFunc
+
+instance Arbitrary ElementType where
+  arbitrary = genElementType
+  shrink = genericShrink
 
 genTableType :: Gen TableType
 genTableType = TableType <$> genElementType <*> genLimits
 
+instance Arbitrary TableType where
+  arbitrary = genTableType
+  shrink = genericShrink
+
 genMutability :: Gen Mutability
 genMutability = Test.QuickCheck.Gen.elements [Const, Var]
+
+instance Arbitrary Mutability where
+  arbitrary = genMutability
+  shrink = genericShrink
 
 genGlobalType :: Gen GlobalType
 genGlobalType = GlobalType <$> genValueType <*> genMutability
 
+instance Arbitrary GlobalType where
+  arbitrary = genGlobalType
+  shrink = genericShrink
+
 genMemoryArgument :: Gen MemoryArgument
 genMemoryArgument = MemoryArgument <$> chooseAny <*> chooseAny
+
+instance Arbitrary MemoryArgument where
+  arbitrary = genMemoryArgument
+  shrink = genericShrink
 
 genInstructions :: Gen [Instruction]
 genInstructions = listOf genInstruction
@@ -225,32 +271,72 @@ genInstruction =
     , pure F64ReinterpretFromI64
     ]
 
+instance Arbitrary Instruction where
+  arbitrary = genInstruction
+  shrink = genericShrink
+
 genExpression :: Gen Expression
 genExpression = Expression <$> listOf genInstruction
+
+instance Arbitrary Expression where
+  arbitrary = genExpression
+  shrink = genericShrink
 
 genCustom :: Gen Custom
 genCustom = Custom <$> genName <*> genSBS
 
+instance Arbitrary Custom where
+  arbitrary = genCustom
+  shrink = genericShrink
+
 genFunctionTypeIndex :: Gen FunctionTypeIndex
 genFunctionTypeIndex = coerce (chooseAny @Word32)
+
+instance Arbitrary FunctionTypeIndex where
+  arbitrary = genFunctionTypeIndex
+  shrink = genericShrink
 
 genFunctionIndex :: Gen FunctionIndex
 genFunctionIndex = coerce (chooseAny @Word32)
 
+instance Arbitrary FunctionIndex where
+  arbitrary = genFunctionIndex
+  shrink = genericShrink
+
 genTableIndex :: Gen TableIndex
 genTableIndex = coerce (chooseAny @Word32)
+
+instance Arbitrary TableIndex where
+  arbitrary = genTableIndex
+  shrink = genericShrink
 
 genMemoryIndex :: Gen MemoryIndex
 genMemoryIndex = coerce (chooseAny @Word32)
 
+instance Arbitrary MemoryIndex where
+  arbitrary = genMemoryIndex
+  shrink = genericShrink
+
 genGlobalIndex :: Gen GlobalIndex
 genGlobalIndex = coerce (chooseAny @Word32)
+
+instance Arbitrary GlobalIndex where
+  arbitrary = genGlobalIndex
+  shrink = genericShrink
 
 genLocalIndex :: Gen LocalIndex
 genLocalIndex = coerce (chooseAny @Word32)
 
+instance Arbitrary LocalIndex where
+  arbitrary = genLocalIndex
+  shrink = genericShrink
+
 genLabelIndex :: Gen LabelIndex
 genLabelIndex = coerce (chooseAny @Word32)
+
+instance Arbitrary LabelIndex where
+  arbitrary = genLabelIndex
+  shrink = genericShrink
 
 genImportDescription :: Gen ImportDescription
 genImportDescription =
@@ -261,17 +347,37 @@ genImportDescription =
     , ImportGlobal <$> genGlobalType
     ]
 
+instance Arbitrary ImportDescription where
+  arbitrary = genImportDescription
+  shrink = genericShrink
+
 genImport :: Gen Import
 genImport = Import <$> genName <*> genName <*> genImportDescription
+
+instance Arbitrary Import where
+  arbitrary = genImport
+  shrink = genericShrink
 
 genTable :: Gen Table
 genTable = coerce genTableType
 
+instance Arbitrary Table where
+  arbitrary = genTable
+  shrink = genericShrink
+
 genMemory :: Gen Memory
 genMemory = coerce genMemoryType
 
+instance Arbitrary Memory where
+  arbitrary = genMemory
+  shrink = genericShrink
+
 genGlobal :: Gen Global
 genGlobal = Global <$> genGlobalType <*> genExpression
+
+instance Arbitrary Global where
+  arbitrary = genGlobal
+  shrink = genericShrink
 
 genExportDescription :: Gen ExportDescription
 genExportDescription =
@@ -282,24 +388,52 @@ genExportDescription =
     , ExportGlobal <$> genGlobalIndex
     ]
 
+instance Arbitrary ExportDescription where
+  arbitrary = genExportDescription
+  shrink = genericShrink
+
 genExport :: Gen Export
 genExport = Export <$> genName <*> genExportDescription
 
+instance Arbitrary Export where
+  arbitrary = genExport
+  shrink = genericShrink
+
 genStart :: Gen Start
 genStart = coerce genFunctionIndex
+
+instance Arbitrary Start where
+  arbitrary = genStart
+  shrink = genericShrink
 
 genElement :: Gen Element
 genElement =
   Element <$> genTableIndex <*> genExpression <*> listOf genFunctionIndex
 
+instance Arbitrary Element where
+  arbitrary = genElement
+  shrink = genericShrink
+
 genLocals :: Gen Locals
 genLocals = Locals <$> chooseAny <*> genValueType
+
+instance Arbitrary Locals where
+  arbitrary = genLocals
+  shrink = genericShrink
 
 genFunction :: Gen Function
 genFunction = Function <$> listOf genLocals <*> genExpression
 
+instance Arbitrary Function where
+  arbitrary = genFunction
+  shrink = genericShrink
+
 genData :: Gen Data
 genData = Data <$> genMemoryIndex <*> genExpression <*> genSBS
+
+instance Arbitrary Data where
+  arbitrary = genData
+  shrink = genericShrink
 
 genSection :: Gen Section
 genSection =
@@ -317,6 +451,10 @@ genSection =
     , CodeSection <$> listOf genFunction
     , DataSection <$> listOf genData
     ]
+
+instance Arbitrary Section where
+  arbitrary = genSection
+  shrink = genericShrink
 
 genModule :: Gen Module
 genModule = Module <$> listOf genSection

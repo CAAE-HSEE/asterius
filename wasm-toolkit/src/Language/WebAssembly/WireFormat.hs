@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
@@ -63,11 +64,12 @@ import Data.Coerce
 import Data.Foldable
 import Data.Int
 import Data.Word
+import GHC.Generics (Generic)
 import Prelude hiding (fail)
 
 newtype Name =
   Name SBS.ShortByteString
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getName :: Get Name
 getName = coerce getVecSBS
@@ -80,7 +82,7 @@ data ValueType
   | I64
   | F32
   | F64
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getValueType :: Get ValueType
 getValueType = do
@@ -119,7 +121,7 @@ putResultType resultValueTypes =
 
 data FunctionType = FunctionType
   { parameterTypes, resultTypes :: [ValueType]
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getFunctionType :: Get FunctionType
 getFunctionType = do
@@ -137,7 +139,7 @@ putFunctionType FunctionType {..} = do
 data Limits = Limits
   { minLimit :: Word32
   , maxLimit :: Maybe Word32
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getLimits :: Get Limits
 getLimits = do
@@ -160,7 +162,7 @@ putLimits Limits {..} =
 
 newtype MemoryType = MemoryType
   { memoryLimits :: Limits
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getMemoryType :: Get MemoryType
 getMemoryType = coerce getLimits
@@ -170,7 +172,7 @@ putMemoryType = coerce putLimits
 
 data ElementType =
   AnyFunc
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getElementType :: Get ElementType
 getElementType = do
@@ -188,7 +190,7 @@ putElementType et =
 data TableType = TableType
   { elementType :: ElementType
   , tableLimits :: Limits
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getTableType :: Get TableType
 getTableType = TableType <$> getElementType <*> getLimits
@@ -201,7 +203,7 @@ putTableType TableType {..} = do
 data Mutability
   = Const
   | Var
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getMutability :: Get Mutability
 getMutability = do
@@ -221,7 +223,7 @@ putMutability m =
 data GlobalType = GlobalType
   { globalValueType :: ValueType
   , globalMutability :: Mutability
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getGlobalType :: Get GlobalType
 getGlobalType = GlobalType <$> getValueType <*> getMutability
@@ -233,7 +235,7 @@ putGlobalType GlobalType {..} = do
 
 data MemoryArgument = MemoryArgument
   { memoryArgumentAlignment, memoryArgumentOffset :: Word32
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getMemoryArgument :: Get MemoryArgument
 getMemoryArgument = MemoryArgument <$> getVU32 <*> getVU32
@@ -415,7 +417,7 @@ data Instruction
   | I64ReinterpretFromF64
   | F32ReinterpretFromI32
   | F64ReinterpretFromI64
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getInstruction :: Get Instruction
 getInstruction = do
@@ -854,7 +856,7 @@ putInstruction instr =
 
 newtype Expression = Expression
   { instructions :: [Instruction]
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getExpression :: Get Expression
 getExpression = coerce (getMany getInstruction) <* expectWord8 0x0B
@@ -867,7 +869,7 @@ putExpression expr = do
 data Custom = Custom
   { customName :: Name
   , customContent :: SBS.ShortByteString
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getCustom :: Word32 -> Get Custom
 getCustom l = do
@@ -884,7 +886,7 @@ putCustom Custom {..} = do
 
 newtype FunctionTypeIndex =
   FunctionTypeIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getFunctionTypeIndex :: Get FunctionTypeIndex
 getFunctionTypeIndex = coerce getVU32
@@ -894,7 +896,7 @@ putFunctionTypeIndex = coerce putVU32
 
 newtype FunctionIndex =
   FunctionIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getFunctionIndex :: Get FunctionIndex
 getFunctionIndex = coerce getVU32
@@ -904,7 +906,7 @@ putFunctionIndex = coerce putVU32
 
 newtype TableIndex =
   TableIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getTableIndex :: Get TableIndex
 getTableIndex = coerce getVU32
@@ -914,7 +916,7 @@ putTableIndex = coerce putVU32
 
 newtype MemoryIndex =
   MemoryIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getMemoryIndex :: Get MemoryIndex
 getMemoryIndex = coerce getVU32
@@ -924,7 +926,7 @@ putMemoryIndex = coerce putVU32
 
 newtype GlobalIndex =
   GlobalIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getGlobalIndex' :: Get GlobalIndex
 getGlobalIndex' = coerce getVU32
@@ -934,7 +936,7 @@ putGlobalIndex = coerce putVU32
 
 newtype LocalIndex =
   LocalIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getLocalIndex' :: Get LocalIndex
 getLocalIndex' = coerce getVU32
@@ -944,7 +946,7 @@ putLocalIndex = coerce putVU32
 
 newtype LabelIndex =
   LabelIndex Word32
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getLabelIndex :: Get LabelIndex
 getLabelIndex = coerce getVU32
@@ -957,7 +959,7 @@ data ImportDescription
   | ImportTable TableType
   | ImportMemory MemoryType
   | ImportGlobal GlobalType
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getImportDescription :: Get ImportDescription
 getImportDescription = do
@@ -988,7 +990,7 @@ putImportDescription desc =
 data Import = Import
   { moduleName, importName :: Name
   , importDescription :: ImportDescription
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getImport :: Get Import
 getImport = Import <$> getName <*> getName <*> getImportDescription
@@ -1001,7 +1003,7 @@ putImport Import {..} = do
 
 newtype Table = Table
   { tableType :: TableType
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getTable :: Get Table
 getTable = coerce getTableType
@@ -1011,7 +1013,7 @@ putTable = coerce putTableType
 
 newtype Memory = Memory
   { memoryType :: MemoryType
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getMemory :: Get Memory
 getMemory = coerce getMemoryType
@@ -1022,7 +1024,7 @@ putMemory = coerce putMemoryType
 data Global = Global
   { globalType :: GlobalType
   , globalInitialValue :: Expression
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getGlobal :: Get Global
 getGlobal = Global <$> getGlobalType <*> getExpression
@@ -1037,7 +1039,7 @@ data ExportDescription
   | ExportTable TableIndex
   | ExportMemory MemoryIndex
   | ExportGlobal GlobalIndex
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getExportDescription :: Get ExportDescription
 getExportDescription = do
@@ -1068,7 +1070,7 @@ putExportDescription d =
 data Export = Export
   { exportName :: Name
   , exportDescription :: ExportDescription
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getExport :: Get Export
 getExport = Export <$> getName <*> getExportDescription
@@ -1080,7 +1082,7 @@ putExport Export {..} = do
 
 newtype Start = Start
   { startFunctionIndex :: FunctionIndex
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getStart :: Get Start
 getStart = coerce getFunctionIndex
@@ -1092,7 +1094,7 @@ data Element = Element
   { tableIndex :: TableIndex
   , tableOffset :: Expression
   , tableInitialValues :: [FunctionIndex]
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getElement :: Get Element
 getElement =
@@ -1107,7 +1109,7 @@ putElement Element {..} = do
 data Locals = Locals
   { localsCount :: Word32
   , localsType :: ValueType
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getLocals :: Get Locals
 getLocals = Locals <$> getVU32 <*> getValueType
@@ -1120,7 +1122,7 @@ putLocals Locals {..} = do
 data Function = Function
   { functionLocals :: [Locals]
   , functionBody :: Expression
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getFunction :: Get Function
 getFunction = Function <$> getVec getLocals <*> getExpression
@@ -1134,7 +1136,7 @@ data Data = Data
   { memoryIndex :: MemoryIndex
   , memoryOffset :: Expression
   , memoryInitialBytes :: SBS.ShortByteString
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getData :: Get Data
 getData = Data <$> getMemoryIndex <*> getExpression <*> getVecSBS
@@ -1158,7 +1160,7 @@ data Section
   | ElementSection { elements :: [Element] }
   | CodeSection { functions' :: [Function] }
   | DataSection { dataSegments :: [Data] }
-  deriving (Eq, Show)
+  deriving (Eq, Generic, Show)
 
 getSection :: Get Section
 getSection = do
@@ -1222,7 +1224,7 @@ putSection sec =
 
 newtype Module = Module
   { sections :: [Section]
-  } deriving (Eq, Show)
+  } deriving (Eq, Generic, Show)
 
 getModule :: Get Module
 getModule = do
