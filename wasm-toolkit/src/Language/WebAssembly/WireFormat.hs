@@ -294,6 +294,10 @@ data Instruction
   | I64Store32 { i64Store32MemoryArgument :: MemoryArgument }
   | MemorySize
   | MemoryGrow
+  | I32Const { i32ConstValue :: Int32 }
+  | I64Const { i64ConstValue :: Int64 }
+  | F32Const { f32ConstValue :: Float }
+  | F64Const { f64ConstValue :: Double }
   | I32Eqz
   | I32Eq
   | I32Ne
@@ -471,6 +475,10 @@ getInstruction = do
     0x3E -> I64Store32 <$> getMemoryArgument
     0x3F -> MemorySize <$ expectWord8 0x00
     0x40 -> MemoryGrow <$ expectWord8 0x00
+    0x41 -> I32Const <$> getVS32
+    0x42 -> I64Const <$> getVS64
+    0x43 -> F32Const <$> getF32
+    0x44 -> F64Const <$> getF64
     0x45 -> pure I32Eqz
     0x46 -> pure I32Eq
     0x47 -> pure I32Ne
@@ -730,6 +738,18 @@ putInstruction instr =
     MemoryGrow -> do
       putWord8 0x40
       putWord8 0x00
+    I32Const {..} -> do
+      putWord8 0x41
+      putVS32 i32ConstValue
+    I64Const {..} -> do
+      putWord8 0x42
+      putVS64 i64ConstValue
+    F32Const {..} -> do
+      putWord8 0x43
+      putF32 f32ConstValue
+    F64Const {..} -> do
+      putWord8 0x44
+      putF64 f64ConstValue
     I32Eqz -> putWord8 0x45
     I32Eq -> putWord8 0x46
     I32Ne -> putWord8 0x47
@@ -1178,7 +1198,7 @@ getSection = do
     7 -> getVU32 *> (ExportSection <$> getVec getExport)
     8 -> getVU32 *> (StartSection <$> getStart)
     9 -> getVU32 *> (ElementSection <$> getVec getElement)
-    10 -> getVU32 *> (CodeSection <$> getMany (getVU32 *> getFunction))
+    10 -> getVU32 *> (CodeSection <$> getVec (getVU32 *> getFunction))
     11 -> getVU32 *> (DataSection <$> getVec getData)
     _ -> fail "Language.WebAssembly.WireFormat.getSection"
 
@@ -1217,7 +1237,7 @@ putSection sec =
       putWithLength $ putVec putElement elements
     CodeSection {..} -> do
       putWord8 10
-      putWithLength $ putMany (putWithLength . putFunction) functions'
+      putWithLength $ putVec (putWithLength . putFunction) functions'
     DataSection {..} -> do
       putWord8 11
       putWithLength $ putVec putData dataSegments
@@ -1234,7 +1254,7 @@ getModule = do
 putModule :: Module -> Put
 putModule Module {..} = do
   for_ [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00] putWord8
-  for_ sections putSection
+  putMany putSection sections
 
 expectWord8 :: Word8 -> Get ()
 expectWord8 x = do

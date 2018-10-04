@@ -1,14 +1,17 @@
 {-# OPTIONS_GHC -Wno-overflowed-literals #-}
 
+import Control.Monad
 import Data.Binary.Get
 import Data.Binary.Put
 import qualified Data.ByteString.Lazy as LBS
+import Data.Foldable
 import Language.WebAssembly.WireFormat
 import Language.WebAssembly.WireFormat.Orphans
 import Test.QuickCheck
 import Test.QuickCheck.Gen
 
-testCodecGen :: (Eq a, Show a) => Gen a -> (a -> [a]) -> Get a -> (a -> Put) -> Property
+testCodecGen ::
+     (Eq a, Show a) => Gen a -> (a -> [a]) -> Get a -> (a -> Put) -> Property
 testCodecGen gen s g p =
   forAllShrink gen s $ \x ->
     case runGetOrFail g $ runPut $ p x of
@@ -56,10 +59,19 @@ testLEB128Dynamic =
 main :: IO ()
 main = do
   quickCheck testLEB128Static
-  -- testCodecModule "test/fib.wasm" >>= quickCheck
-  quickCheck $
+  for_
+    [ "test/array.wasm"
+    , "test/fib.wasm"
+    , "test/jsffi.wasm"
+    , "test/rtsapi.wasm"
+    , "test/stableptr.wasm"
+    ] $
+    testCodecModule >=> quickCheck
+  r <-
+    quickCheckResult $
     withMaxSuccess 576460752303423488 $
     conjoin
       [ testLEB128Dynamic
       , testCodecGen (resize 64 genModule) genericShrink getModule putModule
       ]
+  writeFile "test/wasm-toolkit-codec.txt" $ show r
