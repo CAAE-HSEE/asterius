@@ -18,12 +18,12 @@ testCodecGen gen s g p =
       Right (_, _, r) -> x == r
       _ -> False
 
-testCodecFile :: LBS.ByteString -> Get a -> (a -> Put) -> Property
+testCodecFile ::
+     (Eq a, Show a) => LBS.ByteString -> Get a -> (a -> Put) -> Property
 testCodecFile buf g p =
-  property $
   case runGetOrFail g buf of
-    Right (_, _, x) -> runPut (p x) == buf
-    _ -> False
+    Right (_, _, x) -> testCodecGen (pure x) (const []) g p
+    _ -> property False
 
 testCodecModule :: FilePath -> IO Property
 testCodecModule p = do
@@ -61,6 +61,7 @@ main = do
   quickCheck testLEB128Static
   for_
     [ "test/array.wasm"
+    , "test/clang-fib.wasm"
     , "test/fib.wasm"
     , "test/jsffi.wasm"
     , "test/rtsapi.wasm"
