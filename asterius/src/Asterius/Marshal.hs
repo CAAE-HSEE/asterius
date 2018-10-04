@@ -43,7 +43,6 @@ marshalValueType t =
     I64 -> c_BinaryenTypeInt64
     F32 -> c_BinaryenTypeFloat32
     F64 -> c_BinaryenTypeFloat64
-    Auto -> c_BinaryenTypeAuto
 
 marshalUnaryOp :: UnaryOp -> BinaryenOp
 marshalUnaryOp op =

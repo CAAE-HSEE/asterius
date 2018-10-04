@@ -213,7 +213,6 @@ data ValueType
   | I64
   | F32
   | F64
-  | Auto
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Binary ValueType

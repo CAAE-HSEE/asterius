@@ -9,6 +9,7 @@ module Asterius.Tracing
 
 import Asterius.Builtins
 import Asterius.Internals
+import Asterius.TypeInfer
 import Asterius.Types
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
@@ -52,7 +53,7 @@ addTracingModule func_sym_map func_sym func_type func
                                 }
                             , new_body
                             ]
-                        , valueType = Auto
+                        , valueType = infer new_body
                         }
                   }
         _ ->
@@ -86,7 +87,7 @@ addTracingModule func_sym_map func_sym func_type func
                                                     }
                                                 , new_code
                                                 ]
-                                            , valueType = Auto
+                                            , valueType = infer new_code
                                             }
                                       }
                                 })
@@ -112,7 +113,7 @@ addTracingModule func_sym_map func_sym func_type func
                                                     }
                                                 , new_code
                                                 ]
-                                            , valueType = Auto
+                                            , valueType = infer new_code
                                             }
                                       , condition = condition
                                       }
