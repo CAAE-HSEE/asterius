@@ -72,6 +72,6 @@ main = do
     withMaxSuccess 576460752303423488 $
     conjoin
       [ testLEB128Dynamic
-      , testCodecGen (resize 64 genModule) genericShrink getModule putModule
+      , testCodecGen genModule genericShrink getModule putModule
       ]
   writeFile "test/wasm-toolkit-codec.txt" $ show r
