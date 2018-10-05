@@ -39,6 +39,8 @@ module Language.WebAssembly.WireFormat
   , Function(..)
   , DataSegment(..)
   , LinkingSubSection(..)
+  , RelocationType(..)
+  , RelocationEntry(..)
   , Section(..)
   , Module(..)
   , getVU32
@@ -61,6 +63,7 @@ import Control.Monad.Fail
 import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Short as SBS
 import Data.Coerce
@@ -1189,9 +1192,32 @@ putLinkingSubSection LinkingSubSection {..} = do
   putWord8 linkingSubSectionType
   putVecSBS linkingSubSectionPayload
 
+data RelocationType
+  = RWebAssemblyFunctionIndexLEB
+  | RWebAssemblyTableIndexSLEB
+  | RWebAssemblyTableIndexI32
+  | RWebAssemblyMemoryAddrLEB
+  | RWebAssemblyMemoryAddrSLEB
+  | RWebAssemblyMemoryAddrI32
+  | RWebAssemblyTypeIndexLEB
+  | RWebAssemblyGlobalIndexLEB
+  | RWebAssemblyFunctionOffsetI32
+  | RWebAssemblySectionOffsetI32
+  deriving (Eq, Show, Generic)
+
+data RelocationEntry = RelocationEntry
+  { relocationType :: RelocationType
+  , relocationOffset, relocationIndex :: Word32
+  , relocationAddEnd :: Maybe Word32
+  } deriving (Eq, Show, Generic)
+
 data Section
-  = LinkingSection { linkingSectionVersion :: Word32
+  = LinkingSection { linkingSectionName :: Name
+                   , linkingSectionVersion :: Word32
                    , linkingSubSections :: [LinkingSubSection] }
+  | RelocationSection { relocationSectionName :: Name
+                      , relocationSectionIndex :: Word32
+                      , relocationEntries :: [RelocationEntry] }
   | CustomSection { custom :: Custom }
   | TypeSection { types :: [FunctionType] }
   | ImportSection { imports :: [Import] }
@@ -1214,22 +1240,61 @@ getSection = do
       _sec_len <- getVU32
       (_sec_name, _name_len) <- getCustomName
       let _payload_len = _sec_len - _name_len
-      getRegion _payload_len $
+      isolate (fromIntegral _payload_len) $
         if _sec_name == Name "linking"
-          then LinkingSection <$> getVU32 <*> getMany getLinkingSubSection
-          else CustomSection . Custom _sec_name . SBS.toShort <$>
-               getByteString (fromIntegral _payload_len)
-    1 -> getTaggedRegion (TypeSection <$> getVec getFunctionType)
-    2 -> getTaggedRegion (ImportSection <$> getVec getImport)
-    3 -> getTaggedRegion (FunctionSection <$> getVec getFunctionTypeIndex)
-    4 -> getTaggedRegion (TableSection <$> getVec getTable)
-    5 -> getTaggedRegion (MemorySection <$> getVec getMemory)
-    6 -> getTaggedRegion (GlobalSection <$> getVec getGlobal)
-    7 -> getTaggedRegion (ExportSection <$> getVec getExport)
-    8 -> getTaggedRegion (StartSection <$> getStart)
-    9 -> getTaggedRegion (ElementSection <$> getVec getElement)
-    10 -> getTaggedRegion (CodeSection <$> getVec (getTaggedRegion getFunction))
-    11 -> getTaggedRegion (DataSection <$> getVec getDataSegment)
+          then LinkingSection _sec_name <$> getVU32 <*>
+               getMany getLinkingSubSection
+          else if "reloc." `BS.isPrefixOf` SBS.fromShort (coerce _sec_name)
+                 then RelocationSection _sec_name <$> getVU32 <*>
+                      getVec
+                        (do _reloc_type_tag <- getWord8
+                            _reloc_type <-
+                              case _reloc_type_tag of
+                                0 -> pure RWebAssemblyFunctionIndexLEB
+                                1 -> pure RWebAssemblyTableIndexSLEB
+                                2 -> pure RWebAssemblyTableIndexI32
+                                3 -> pure RWebAssemblyMemoryAddrLEB
+                                4 -> pure RWebAssemblyMemoryAddrSLEB
+                                5 -> pure RWebAssemblyMemoryAddrI32
+                                6 -> pure RWebAssemblyTypeIndexLEB
+                                7 -> pure RWebAssemblyGlobalIndexLEB
+                                8 -> pure RWebAssemblyFunctionOffsetI32
+                                9 -> pure RWebAssemblySectionOffsetI32
+                                _ ->
+                                  fail
+                                    "Language.WebAssembly.WireFormat.getRelocationType"
+                            _reloc_offset <- getVU32
+                            _reloc_index <- getVU32
+                            _reloc_addend <-
+                              if _reloc_type `elem`
+                                 [ RWebAssemblyMemoryAddrLEB
+                                 , RWebAssemblyMemoryAddrSLEB
+                                 , RWebAssemblyMemoryAddrI32
+                                 , RWebAssemblyFunctionOffsetI32
+                                 , RWebAssemblySectionOffsetI32
+                                 ]
+                                then Just <$> getVU32
+                                else pure Nothing
+                            pure $
+                              RelocationEntry
+                                _reloc_type
+                                _reloc_offset
+                                _reloc_index
+                                _reloc_addend)
+                 else CustomSection . Custom _sec_name . SBS.toShort <$>
+                      getByteString (fromIntegral _payload_len)
+    1 -> getCheckedRegion (TypeSection <$> getVec getFunctionType)
+    2 -> getCheckedRegion (ImportSection <$> getVec getImport)
+    3 -> getCheckedRegion (FunctionSection <$> getVec getFunctionTypeIndex)
+    4 -> getCheckedRegion (TableSection <$> getVec getTable)
+    5 -> getCheckedRegion (MemorySection <$> getVec getMemory)
+    6 -> getCheckedRegion (GlobalSection <$> getVec getGlobal)
+    7 -> getCheckedRegion (ExportSection <$> getVec getExport)
+    8 -> getCheckedRegion (StartSection <$> getStart)
+    9 -> getCheckedRegion (ElementSection <$> getVec getElement)
+    10 ->
+      getCheckedRegion (CodeSection <$> getVec (getCheckedRegion getFunction))
+    11 -> getCheckedRegion (DataSection <$> getVec getDataSegment)
     _ -> fail "Language.WebAssembly.WireFormat.getSection"
 
 putSection :: Section -> Put
@@ -1238,9 +1303,30 @@ putSection sec =
     LinkingSection {..} -> do
       putWord8 0
       putWithLength $ do
-        putName $ Name "linking"
+        putName linkingSectionName
         putVU32 linkingSectionVersion
         putMany putLinkingSubSection linkingSubSections
+    RelocationSection {..} -> do
+      putWord8 0
+      putWithLength $ do
+        putName relocationSectionName
+        putVU32 relocationSectionIndex
+        flip putVec relocationEntries $ \RelocationEntry {..} -> do
+          putWord8 $
+            case relocationType of
+              RWebAssemblyFunctionIndexLEB -> 0
+              RWebAssemblyTableIndexSLEB -> 1
+              RWebAssemblyTableIndexI32 -> 2
+              RWebAssemblyMemoryAddrLEB -> 3
+              RWebAssemblyMemoryAddrSLEB -> 4
+              RWebAssemblyMemoryAddrI32 -> 5
+              RWebAssemblyTypeIndexLEB -> 6
+              RWebAssemblyGlobalIndexLEB -> 7
+              RWebAssemblyFunctionOffsetI32 -> 8
+              RWebAssemblySectionOffsetI32 -> 9
+          putVU32 relocationOffset
+          putVU32 relocationIndex
+          putMaybe putVU32 relocationAddEnd
     CustomSection {custom = Custom {..}} -> do
       putWord8 0
       putWithLength $ do
@@ -1291,7 +1377,7 @@ getModule = do
 
 putModule :: Module -> Put
 putModule Module {..} = do
-  for_ [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00] putWord8
+  putSBS $ SBS.pack [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]
   putMany putSection sections
 
 expectWord8 :: Word8 -> Get ()
@@ -1391,6 +1477,9 @@ getMany = many
 putMany :: (a -> Put) -> [a] -> Put
 putMany = traverse_
 
+putMaybe :: (a -> Put) -> Maybe a -> Put
+putMaybe = traverse_
+
 putSBS :: SBS.ShortByteString -> Put
 putSBS = putShortByteString
 
@@ -1410,15 +1499,7 @@ putWithLength p = do
   putVU32 $ fromIntegral $ LBS.length buf
   putLazyByteString buf
 
-getRegion :: Show a => Word32 -> Get a -> Get a
-getRegion l g = do
-  buf <- getLazyByteString $ fromIntegral l
-  case runGetOrFail g buf of
-    Right (residule, _, result)
-      | LBS.null residule -> pure result
-    r -> fail $ show r
-
-getTaggedRegion :: Show a => Get a -> Get a
-getTaggedRegion g = do
-  l <- getVU32
-  getRegion l g
+getCheckedRegion :: Get a -> Get a
+getCheckedRegion g = do
+  l <- fromIntegral <$> getVU32
+  isolate l g

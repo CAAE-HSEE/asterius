@@ -469,6 +469,46 @@ instance Arbitrary LinkingSubSection where
   arbitrary = genLinkingSubSection
   shrink = genericShrink
 
+genRelocationType :: Gen RelocationType
+genRelocationType =
+  Test.QuickCheck.Gen.elements
+    [ RWebAssemblyFunctionIndexLEB
+    , RWebAssemblyTableIndexSLEB
+    , RWebAssemblyTableIndexI32
+    , RWebAssemblyMemoryAddrLEB
+    , RWebAssemblyMemoryAddrSLEB
+    , RWebAssemblyMemoryAddrI32
+    , RWebAssemblyTypeIndexLEB
+    , RWebAssemblyGlobalIndexLEB
+    , RWebAssemblyFunctionOffsetI32
+    , RWebAssemblySectionOffsetI32
+    ]
+
+instance Arbitrary RelocationType where
+  arbitrary = genRelocationType
+  shrink = genericShrink
+
+genRelocationEntry :: Gen RelocationEntry
+genRelocationEntry = do
+  _reloc_type <- genRelocationType
+  _reloc_offset <- chooseAny
+  _reloc_index <- chooseAny
+  _reloc_addend <-
+    if _reloc_type `elem`
+       [ RWebAssemblyMemoryAddrLEB
+       , RWebAssemblyMemoryAddrSLEB
+       , RWebAssemblyMemoryAddrI32
+       , RWebAssemblyFunctionOffsetI32
+       , RWebAssemblySectionOffsetI32
+       ]
+      then Just <$> chooseAny
+      else pure Nothing
+  pure $ RelocationEntry _reloc_type _reloc_offset _reloc_index _reloc_addend
+
+instance Arbitrary RelocationEntry where
+  arbitrary = genRelocationEntry
+  shrink = genericShrink
+
 genSection :: Gen Section
 genSection =
   oneof
