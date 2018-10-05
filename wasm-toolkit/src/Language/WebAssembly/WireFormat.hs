@@ -38,6 +38,7 @@ module Language.WebAssembly.WireFormat
   , Locals(..)
   , Function(..)
   , DataSegment(..)
+  , LinkingSubSection(..)
   , Section(..)
   , Module(..)
   , getVU32
@@ -905,18 +906,12 @@ data Custom = Custom
   , customContent :: SBS.ShortByteString
   } deriving (Eq, Generic, Show)
 
-getCustom :: Word32 -> Get Custom
-getCustom l = do
+getCustomName :: Get (Name, Word32)
+getCustomName = do
   o0 <- bytesRead
   n <- getName
   o1 <- bytesRead
-  buf <- getSBS $ l - fromIntegral (o1 - o0)
-  pure $ Custom n buf
-
-putCustom :: Custom -> Put
-putCustom Custom {..} = do
-  putName customName
-  putSBS customContent
+  pure (n, fromIntegral $ o1 - o0)
 
 newtype FunctionTypeIndex =
   FunctionTypeIndex Word32
@@ -1181,8 +1176,23 @@ putDataSegment DataSegment {..} = do
   putExpression memoryOffset
   putVecSBS memoryInitialBytes
 
+data LinkingSubSection = LinkingSubSection
+  { linkingSubSectionType :: Word8
+  , linkingSubSectionPayload :: SBS.ShortByteString
+  } deriving (Eq, Generic, Show)
+
+getLinkingSubSection :: Get LinkingSubSection
+getLinkingSubSection = LinkingSubSection <$> getWord8 <*> getVecSBS
+
+putLinkingSubSection :: LinkingSubSection -> Put
+putLinkingSubSection LinkingSubSection {..} = do
+  putWord8 linkingSubSectionType
+  putVecSBS linkingSubSectionPayload
+
 data Section
-  = CustomSection { custom :: Custom }
+  = LinkingSection { linkingSectionVersion :: Word32
+                   , linkingSubSections :: [LinkingSubSection] }
+  | CustomSection { custom :: Custom }
   | TypeSection { types :: [FunctionType] }
   | ImportSection { imports :: [Import] }
   | FunctionSection { functionTypeIndices :: [FunctionTypeIndex] }
@@ -1201,27 +1211,41 @@ getSection = do
   b <- getWord8
   case b of
     0 -> do
-      l <- getVU32
-      CustomSection <$> getCustom l
-    1 -> getVU32 *> (TypeSection <$> getVec getFunctionType)
-    2 -> getVU32 *> (ImportSection <$> getVec getImport)
-    3 -> getVU32 *> (FunctionSection <$> getVec getFunctionTypeIndex)
-    4 -> getVU32 *> (TableSection <$> getVec getTable)
-    5 -> getVU32 *> (MemorySection <$> getVec getMemory)
-    6 -> getVU32 *> (GlobalSection <$> getVec getGlobal)
-    7 -> getVU32 *> (ExportSection <$> getVec getExport)
-    8 -> getVU32 *> (StartSection <$> getStart)
-    9 -> getVU32 *> (ElementSection <$> getVec getElement)
-    10 -> getVU32 *> (CodeSection <$> getVec (getVU32 *> getFunction))
-    11 -> getVU32 *> (DataSection <$> getVec getDataSegment)
+      _sec_len <- getVU32
+      (_sec_name, _name_len) <- getCustomName
+      let _payload_len = _sec_len - _name_len
+      getRegion _payload_len $
+        if _sec_name == Name "linking"
+          then LinkingSection <$> getVU32 <*> getMany getLinkingSubSection
+          else CustomSection . Custom _sec_name . SBS.toShort <$>
+               getByteString (fromIntegral _payload_len)
+    1 -> getTaggedRegion (TypeSection <$> getVec getFunctionType)
+    2 -> getTaggedRegion (ImportSection <$> getVec getImport)
+    3 -> getTaggedRegion (FunctionSection <$> getVec getFunctionTypeIndex)
+    4 -> getTaggedRegion (TableSection <$> getVec getTable)
+    5 -> getTaggedRegion (MemorySection <$> getVec getMemory)
+    6 -> getTaggedRegion (GlobalSection <$> getVec getGlobal)
+    7 -> getTaggedRegion (ExportSection <$> getVec getExport)
+    8 -> getTaggedRegion (StartSection <$> getStart)
+    9 -> getTaggedRegion (ElementSection <$> getVec getElement)
+    10 -> getTaggedRegion (CodeSection <$> getVec (getTaggedRegion getFunction))
+    11 -> getTaggedRegion (DataSection <$> getVec getDataSegment)
     _ -> fail "Language.WebAssembly.WireFormat.getSection"
 
 putSection :: Section -> Put
 putSection sec =
   case sec of
-    CustomSection {..} -> do
+    LinkingSection {..} -> do
       putWord8 0
-      putWithLength $ putCustom custom
+      putWithLength $ do
+        putName $ Name "linking"
+        putVU32 linkingSectionVersion
+        putMany putLinkingSubSection linkingSubSections
+    CustomSection {custom = Custom {..}} -> do
+      putWord8 0
+      putWithLength $ do
+        putName customName
+        putSBS customContent
     TypeSection {..} -> do
       putWord8 1
       putWithLength $ putVec putFunctionType types
@@ -1358,7 +1382,7 @@ getVec g = do
 
 putVec :: (a -> Put) -> [a] -> Put
 putVec p v = do
-  putVU32 (fromIntegral (length v) :: Word32)
+  putVU32 (fromIntegral (length v))
   for_ v p
 
 getMany :: Get a -> Get [a]
@@ -1367,16 +1391,13 @@ getMany = many
 putMany :: (a -> Put) -> [a] -> Put
 putMany = traverse_
 
-getSBS :: Word32 -> Get SBS.ShortByteString
-getSBS n
-  | n < 0 = fail "Language.WebAssembly.WireFormat.getSBS"
-  | otherwise = SBS.pack <$> replicateM (fromIntegral n) getWord8
-
 putSBS :: SBS.ShortByteString -> Put
-putSBS = putMany putWord8 . SBS.unpack
+putSBS = putShortByteString
 
 getVecSBS :: Get SBS.ShortByteString
-getVecSBS = SBS.pack <$> getVec getWord8
+getVecSBS = do
+  l <- getVU32
+  SBS.toShort <$> getByteString (fromIntegral l)
 
 putVecSBS :: SBS.ShortByteString -> Put
 putVecSBS s = do
@@ -1388,3 +1409,16 @@ putWithLength p = do
   let buf = runPut p
   putVU32 $ fromIntegral $ LBS.length buf
   putLazyByteString buf
+
+getRegion :: Show a => Word32 -> Get a -> Get a
+getRegion l g = do
+  buf <- getLazyByteString $ fromIntegral l
+  case runGetOrFail g buf of
+    Right (residule, _, result)
+      | LBS.null residule -> pure result
+    r -> fail $ show r
+
+getTaggedRegion :: Show a => Get a -> Get a
+getTaggedRegion g = do
+  l <- getVU32
+  getRegion l g

@@ -462,6 +462,13 @@ instance Arbitrary DataSegment where
   arbitrary = genDataSegment
   shrink = genericShrink
 
+genLinkingSubSection :: Gen LinkingSubSection
+genLinkingSubSection = LinkingSubSection <$> chooseAny <*> genSBS
+
+instance Arbitrary LinkingSubSection where
+  arbitrary = genLinkingSubSection
+  shrink = genericShrink
+
 genSection :: Gen Section
 genSection =
   oneof
