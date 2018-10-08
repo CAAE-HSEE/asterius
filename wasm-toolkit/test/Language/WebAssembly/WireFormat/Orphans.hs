@@ -463,7 +463,13 @@ instance Arbitrary DataSegment where
   shrink = genericShrink
 
 genLinkingSubSection :: Gen LinkingSubSection
-genLinkingSubSection = LinkingSubSection <$> chooseAny <*> genSBS
+genLinkingSubSection =
+  oneof
+    [ LinkingWasmSegmentInfo <$> genSBS
+    , LinkingWasmInitFuncs <$> genSBS
+    , LinkingWasmComdatInfo <$> genSBS
+    , LinkingWasmSymbolTable <$> genSBS
+    ]
 
 instance Arbitrary LinkingSubSection where
   arbitrary = genLinkingSubSection

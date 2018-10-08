@@ -1179,18 +1179,38 @@ putDataSegment DataSegment {..} = do
   putExpression memoryOffset
   putVecSBS memoryInitialBytes
 
-data LinkingSubSection = LinkingSubSection
-  { linkingSubSectionType :: Word8
-  , linkingSubSectionPayload :: SBS.ShortByteString
-  } deriving (Eq, Generic, Show)
+data LinkingSubSection
+  = LinkingWasmSegmentInfo { linkingWasmSegmentInfoPayload :: SBS.ShortByteString }
+  | LinkingWasmInitFuncs { linkingWasmInitFuncsPayload :: SBS.ShortByteString }
+  | LinkingWasmComdatInfo { linkingWasmComdatInfoPayload :: SBS.ShortByteString }
+  | LinkingWasmSymbolTable { linkingWasmSymbolTablePayload :: SBS.ShortByteString }
+  deriving (Eq, Generic, Show)
 
 getLinkingSubSection :: Get LinkingSubSection
-getLinkingSubSection = LinkingSubSection <$> getWord8 <*> getVecSBS
+getLinkingSubSection = do
+  b <- getWord8
+  case b of
+    5 -> LinkingWasmSegmentInfo <$> getVecSBS
+    6 -> LinkingWasmInitFuncs <$> getVecSBS
+    7 -> LinkingWasmComdatInfo <$> getVecSBS
+    8 -> LinkingWasmSymbolTable <$> getVecSBS
+    _ -> fail "Language.WebAssembly.WireFormat.getLinkingSubSection"
 
 putLinkingSubSection :: LinkingSubSection -> Put
-putLinkingSubSection LinkingSubSection {..} = do
-  putWord8 linkingSubSectionType
-  putVecSBS linkingSubSectionPayload
+putLinkingSubSection sec =
+  case sec of
+    LinkingWasmSegmentInfo {..} -> do
+      putWord8 5
+      putVecSBS linkingWasmSegmentInfoPayload
+    LinkingWasmInitFuncs {..} -> do
+      putWord8 6
+      putVecSBS linkingWasmInitFuncsPayload
+    LinkingWasmComdatInfo {..} -> do
+      putWord8 7
+      putVecSBS linkingWasmComdatInfoPayload
+    LinkingWasmSymbolTable {..} -> do
+      putWord8 8
+      putVecSBS linkingWasmSymbolTablePayload
 
 data RelocationType
   = RWebAssemblyFunctionIndexLEB
