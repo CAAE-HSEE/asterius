@@ -98,147 +98,6 @@ instance Arbitrary MemoryArgument where
   arbitrary = genMemoryArgument
   shrink = genericShrink
 
-genUnaryOperator :: Gen UnaryOperator
-genUnaryOperator =
-  Test.QuickCheck.Gen.elements
-    [ I32Eqz
-    , I64Eqz
-    , I32Clz
-    , I32Ctz
-    , I32Popcnt
-    , I64Clz
-    , I64Ctz
-    , I64Popcnt
-    , F32Abs
-    , F32Neg
-    , F32Ceil
-    , F32Floor
-    , F32Trunc
-    , F32Nearest
-    , F32Sqrt
-    , F64Abs
-    , F64Neg
-    , F64Ceil
-    , F64Floor
-    , F64Trunc
-    , F64Nearest
-    , F64Sqrt
-    , I32WrapFromI64
-    , I32TruncSFromF32
-    , I32TruncUFromF32
-    , I32TruncSFromF64
-    , I32TruncUFromF64
-    , I64ExtendSFromI32
-    , I64ExtendUFromI32
-    , I64TruncSFromF32
-    , I64TruncUFromF32
-    , I64TruncSFromF64
-    , I64TruncUFromF64
-    , F32ConvertSFromI32
-    , F32ConvertUFromI32
-    , F32ConvertSFromI64
-    , F32ConvertUFromI64
-    , F32DemoteFromF64
-    , F64ConvertSFromI32
-    , F64ConvertUFromI32
-    , F64ConvertSFromI64
-    , F64ConvertUFromI64
-    , F64PromoteFromF32
-    , I32ReinterpretFromF32
-    , I64ReinterpretFromF64
-    , F32ReinterpretFromI32
-    , F64ReinterpretFromI64
-    ]
-
-instance Arbitrary UnaryOperator where
-  arbitrary = genUnaryOperator
-  shrink = genericShrink
-
-genBinaryOperator :: Gen BinaryOperator
-genBinaryOperator =
-  Test.QuickCheck.Gen.elements
-    [ I32Eq
-    , I32Ne
-    , I32LtS
-    , I32LtU
-    , I32GtS
-    , I32GtU
-    , I32LeS
-    , I32LeU
-    , I32GeS
-    , I32GeU
-    , I64Eq
-    , I64Ne
-    , I64LtS
-    , I64LtU
-    , I64GtS
-    , I64GtU
-    , I64LeS
-    , I64LeU
-    , I64GeS
-    , I64GeU
-    , F32Eq
-    , F32Ne
-    , F32Lt
-    , F32Gt
-    , F32Le
-    , F32Ge
-    , F64Eq
-    , F64Ne
-    , F64Lt
-    , F64Gt
-    , F64Le
-    , F64Ge
-    , I32Add
-    , I32Sub
-    , I32Mul
-    , I32DivS
-    , I32DivU
-    , I32RemS
-    , I32RemU
-    , I32And
-    , I32Or
-    , I32Xor
-    , I32Shl
-    , I32ShrS
-    , I32ShrU
-    , I32RotL
-    , I32RotR
-    , I64Add
-    , I64Sub
-    , I64Mul
-    , I64DivS
-    , I64DivU
-    , I64RemS
-    , I64RemU
-    , I64And
-    , I64Or
-    , I64Xor
-    , I64Shl
-    , I64ShrS
-    , I64ShrU
-    , I64RotL
-    , I64RotR
-    , F32Add
-    , F32Sub
-    , F32Mul
-    , F32Div
-    , F32Min
-    , F32Max
-    , F32Copysign
-    , F64Add
-    , F64Sub
-    , F64Mul
-    , F64Div
-    , F64Min
-    , F64Max
-    , F64Copysign
-    ]
-
-instance Arbitrary BinaryOperator where
-  arbitrary = genBinaryOperator
-  shrink = genericShrink
-
 genInstructions :: Gen [Instruction]
 genInstructions = listOf genInstruction
 
@@ -247,9 +106,7 @@ genInstruction =
   frequency
     [ ( 64
       , oneof
-          [ UnaryInstruction <$> genUnaryOperator
-          , BinaryInstruction <$> genBinaryOperator
-          , pure Unreachable
+          [ pure Unreachable
           , pure Nop
           , Branch <$> genLabelIndex
           , BranchIf <$> genLabelIndex
@@ -289,6 +146,129 @@ genInstruction =
           , I64Store32 <$> genMemoryArgument
           , pure MemorySize
           , pure MemoryGrow
+          , pure I32Eqz
+          , pure I64Eqz
+          , pure I32Clz
+          , pure I32Ctz
+          , pure I32Popcnt
+          , pure I64Clz
+          , pure I64Ctz
+          , pure I64Popcnt
+          , pure F32Abs
+          , pure F32Neg
+          , pure F32Ceil
+          , pure F32Floor
+          , pure F32Trunc
+          , pure F32Nearest
+          , pure F32Sqrt
+          , pure F64Abs
+          , pure F64Neg
+          , pure F64Ceil
+          , pure F64Floor
+          , pure F64Trunc
+          , pure F64Nearest
+          , pure F64Sqrt
+          , pure I32WrapFromI64
+          , pure I32TruncSFromF32
+          , pure I32TruncUFromF32
+          , pure I32TruncSFromF64
+          , pure I32TruncUFromF64
+          , pure I64ExtendSFromI32
+          , pure I64ExtendUFromI32
+          , pure I64TruncSFromF32
+          , pure I64TruncUFromF32
+          , pure I64TruncSFromF64
+          , pure I64TruncUFromF64
+          , pure F32ConvertSFromI32
+          , pure F32ConvertUFromI32
+          , pure F32ConvertSFromI64
+          , pure F32ConvertUFromI64
+          , pure F32DemoteFromF64
+          , pure F64ConvertSFromI32
+          , pure F64ConvertUFromI32
+          , pure F64ConvertSFromI64
+          , pure F64ConvertUFromI64
+          , pure F64PromoteFromF32
+          , pure I32ReinterpretFromF32
+          , pure I64ReinterpretFromF64
+          , pure F32ReinterpretFromI32
+          , pure F64ReinterpretFromI64
+          , pure I32Eq
+          , pure I32Ne
+          , pure I32LtS
+          , pure I32LtU
+          , pure I32GtS
+          , pure I32GtU
+          , pure I32LeS
+          , pure I32LeU
+          , pure I32GeS
+          , pure I32GeU
+          , pure I64Eq
+          , pure I64Ne
+          , pure I64LtS
+          , pure I64LtU
+          , pure I64GtS
+          , pure I64GtU
+          , pure I64LeS
+          , pure I64LeU
+          , pure I64GeS
+          , pure I64GeU
+          , pure F32Eq
+          , pure F32Ne
+          , pure F32Lt
+          , pure F32Gt
+          , pure F32Le
+          , pure F32Ge
+          , pure F64Eq
+          , pure F64Ne
+          , pure F64Lt
+          , pure F64Gt
+          , pure F64Le
+          , pure F64Ge
+          , pure I32Add
+          , pure I32Sub
+          , pure I32Mul
+          , pure I32DivS
+          , pure I32DivU
+          , pure I32RemS
+          , pure I32RemU
+          , pure I32And
+          , pure I32Or
+          , pure I32Xor
+          , pure I32Shl
+          , pure I32ShrS
+          , pure I32ShrU
+          , pure I32RotL
+          , pure I32RotR
+          , pure I64Add
+          , pure I64Sub
+          , pure I64Mul
+          , pure I64DivS
+          , pure I64DivU
+          , pure I64RemS
+          , pure I64RemU
+          , pure I64And
+          , pure I64Or
+          , pure I64Xor
+          , pure I64Shl
+          , pure I64ShrS
+          , pure I64ShrU
+          , pure I64RotL
+          , pure I64RotR
+          , pure F32Add
+          , pure F32Sub
+          , pure F32Mul
+          , pure F32Div
+          , pure F32Min
+          , pure F32Max
+          , pure F32Copysign
+          , pure F64Add
+          , pure F64Sub
+          , pure F64Mul
+          , pure F64Div
+          , pure F64Min
+          , pure F64Max
+          , pure F64Copysign
           ])
     , ( 1
       , oneof
