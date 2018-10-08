@@ -14,21 +14,55 @@ testCodecGen ::
      (Eq a, Show a) => Gen a -> (a -> [a]) -> Get a -> (a -> Put) -> Property
 testCodecGen gen s g p =
   forAllShrink gen s $ \x ->
-    case runGetOrFail g $ runPut $ p x of
-      Right (_, _, r) -> x == r
-      _ -> False
+    let buf = runPut $ p x
+     in case runGetOrFail g buf of
+          Right (rest, _, r)
+            | r /= x || not (LBS.null rest) ->
+              counterexample
+                ("testCodeGen: failed to parse.\nBefore: " <> show x <>
+                 "\nBuffer: " <>
+                 show buf <>
+                 "\nAfter: " <>
+                 show r <>
+                 "\nResidule: " <>
+                 show rest)
+                False
+            | otherwise -> property True
+          _ ->
+            counterexample
+              ("testCodecGen: failed to parse.\nBefore: " <> show x <>
+               "\nBuffer: " <>
+               show buf)
+              False
 
 testCodecFile ::
-     (Eq a, Show a) => LBS.ByteString -> Get a -> (a -> Put) -> Property
-testCodecFile buf g p =
+     (Eq a, Show a)
+  => LBS.ByteString
+  -> (a -> [a])
+  -> Get a
+  -> (a -> Put)
+  -> Property
+testCodecFile buf s g p =
   case runGetOrFail g buf of
-    Right (_, _, x) -> testCodecGen (pure x) (const []) g p
-    _ -> property False
+    Right (rest, _, x)
+      | LBS.null rest -> testCodecGen (pure x) s g p
+      | otherwise ->
+        counterexample
+          ("testCodecFile: failed to parse.\nBuffer: " <> show buf <>
+           "\nResult: " <>
+           show x <>
+           "\nResidule: " <>
+           show rest)
+          False
+    _ ->
+      counterexample
+        ("testCodecFile: failed to parse.\nBuffer: " <> show buf)
+        False
 
 testCodecModule :: FilePath -> IO Property
 testCodecModule p = do
   buf <- LBS.readFile p
-  pure $ testCodecFile buf getModule putModule
+  pure $ testCodecFile buf genericShrink getModule putModule
 
 testLEB128Static :: Property
 testLEB128Static =
