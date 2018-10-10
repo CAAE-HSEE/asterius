@@ -278,7 +278,15 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
         _ -> do
           c <- makeInstructions _module_symtable _de_bruijn_ctx condition
           pure $ c <> DList.singleton Wasm.BranchIf {branchIfLabel = _lbl}
-    Switch {..} -> undefined
+    Switch {..} -> do
+      c <- makeInstructions _module_symtable _de_bruijn_ctx condition
+      pure $
+        c <>
+        DList.singleton
+          Wasm.BranchTable
+            { branchTableLabels = map (extractLabel _de_bruijn_ctx) names
+            , branchTableFallbackLabel = extractLabel _de_bruijn_ctx defaultName
+            }
     Call {..} -> do
       xs <- for operands $ makeInstructions _module_symtable _de_bruijn_ctx
       pure $
@@ -305,11 +313,46 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
       v <- makeInstructions _module_symtable _de_bruijn_ctx value
       pure $ v <> DList.singleton Wasm.SetLocal {setLocalIndex = coerce index}
     Load {..} -> do
-      op <- DList.singleton <$> undefined
+      let _mem_arg =
+            Wasm.MemoryArgument
+              {memoryArgumentAlignment = align, memoryArgumentOffset = offset}
+      op <-
+        DList.singleton <$>
+        case (signed, bytes, valueType) of
+          (_, 4, I32) -> pure $ Wasm.I32Load _mem_arg
+          (_, 8, I64) -> pure $ Wasm.I64Load _mem_arg
+          (_, 4, F32) -> pure $ Wasm.F32Load _mem_arg
+          (_, 8, F64) -> pure $ Wasm.F64Load _mem_arg
+          (True, 1, I32) -> pure $ Wasm.I32Load8Signed _mem_arg
+          (False, 1, I32) -> pure $ Wasm.I32Load8Unsigned _mem_arg
+          (True, 2, I32) -> pure $ Wasm.I32Load16Signed _mem_arg
+          (False, 2, I32) -> pure $ Wasm.I32Load16Unsigned _mem_arg
+          (True, 1, I64) -> pure $ Wasm.I64Load8Signed _mem_arg
+          (False, 1, I64) -> pure $ Wasm.I64Load8Unsigned _mem_arg
+          (True, 2, I64) -> pure $ Wasm.I64Load16Signed _mem_arg
+          (False, 2, I64) -> pure $ Wasm.I64Load16Unsigned _mem_arg
+          (True, 4, I64) -> pure $ Wasm.I64Load32Signed _mem_arg
+          (False, 4, I64) -> pure $ Wasm.I64Load32Unsigned _mem_arg
+          _ -> throwError $ UnsupportedExpression expr
       p <- makeInstructions _module_symtable _de_bruijn_ctx ptr
       pure $ p <> op
     Store {..} -> do
-      op <- DList.singleton <$> undefined
+      let _mem_arg =
+            Wasm.MemoryArgument
+              {memoryArgumentAlignment = align, memoryArgumentOffset = offset}
+      op <-
+        DList.singleton <$>
+        case (bytes, valueType) of
+          (4, I32) -> pure $ Wasm.I32Store _mem_arg
+          (8, I64) -> pure $ Wasm.I64Store _mem_arg
+          (4, F32) -> pure $ Wasm.F32Store _mem_arg
+          (8, F64) -> pure $ Wasm.F64Store _mem_arg
+          (1, I32) -> pure $ Wasm.I32Store8 _mem_arg
+          (2, I32) -> pure $ Wasm.I32Store16 _mem_arg
+          (1, I64) -> pure $ Wasm.I64Store8 _mem_arg
+          (2, I64) -> pure $ Wasm.I64Store16 _mem_arg
+          (4, I64) -> pure $ Wasm.I64Store32 _mem_arg
+          _ -> throwError $ UnsupportedExpression expr
       p <- makeInstructions _module_symtable _de_bruijn_ctx ptr
       v <- makeInstructions _module_symtable _de_bruijn_ctx value
       pure $ p <> v <> op
@@ -319,12 +362,140 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
     ConstF64 v -> pure $ DList.singleton Wasm.F64Const {f64ConstValue = v}
     Unary {..} -> do
       x <- makeInstructions _module_symtable _de_bruijn_ctx operand0
-      op <- DList.singleton <$> undefined
+      op <-
+        DList.singleton <$>
+        case unaryOp of
+          ClzInt32 -> pure Wasm.I32Clz
+          CtzInt32 -> pure Wasm.I32Ctz
+          PopcntInt32 -> pure Wasm.I32Popcnt
+          NegFloat32 -> pure Wasm.F32Neg
+          AbsFloat32 -> pure Wasm.F32Abs
+          CeilFloat32 -> pure Wasm.F32Ceil
+          FloorFloat32 -> pure Wasm.F32Floor
+          TruncFloat32 -> pure Wasm.F32Trunc
+          NearestFloat32 -> pure Wasm.F32Nearest
+          SqrtFloat32 -> pure Wasm.F32Sqrt
+          EqZInt32 -> pure Wasm.I32Eqz
+          ClzInt64 -> pure Wasm.I64Clz
+          CtzInt64 -> pure Wasm.I64Ctz
+          PopcntInt64 -> pure Wasm.I64Popcnt
+          NegFloat64 -> pure Wasm.F64Neg
+          AbsFloat64 -> pure Wasm.F64Abs
+          CeilFloat64 -> pure Wasm.F64Ceil
+          FloorFloat64 -> pure Wasm.F64Floor
+          TruncFloat64 -> pure Wasm.F64Trunc
+          NearestFloat64 -> pure Wasm.F64Nearest
+          SqrtFloat64 -> pure Wasm.F64Sqrt
+          EqZInt64 -> pure Wasm.I64Eqz
+          ExtendSInt32 -> pure Wasm.I64ExtendSFromI32
+          ExtendUInt32 -> pure Wasm.I64ExtendUFromI32
+          WrapInt64 -> pure Wasm.I32WrapFromI64
+          TruncSFloat32ToInt32 -> pure Wasm.I32TruncSFromF32
+          TruncSFloat32ToInt64 -> pure Wasm.I64TruncSFromF32
+          TruncUFloat32ToInt32 -> pure Wasm.I32TruncUFromF32
+          TruncUFloat32ToInt64 -> pure Wasm.I64TruncUFromF32
+          TruncSFloat64ToInt32 -> pure Wasm.I32TruncSFromF64
+          TruncSFloat64ToInt64 -> pure Wasm.I64TruncSFromF64
+          TruncUFloat64ToInt32 -> pure Wasm.I32TruncUFromF64
+          TruncUFloat64ToInt64 -> pure Wasm.I64TruncUFromF64
+          ReinterpretFloat32 -> pure Wasm.I32ReinterpretFromF32
+          ReinterpretFloat64 -> pure Wasm.I64ReinterpretFromF64
+          ConvertSInt32ToFloat32 -> pure Wasm.F32ConvertSFromI32
+          ConvertSInt32ToFloat64 -> pure Wasm.F64ConvertSFromI32
+          ConvertUInt32ToFloat32 -> pure Wasm.F32ConvertUFromI32
+          ConvertUInt32ToFloat64 -> pure Wasm.F64ConvertUFromI32
+          ConvertSInt64ToFloat32 -> pure Wasm.F32ConvertSFromI64
+          ConvertSInt64ToFloat64 -> pure Wasm.F64ConvertSFromI64
+          ConvertUInt64ToFloat32 -> pure Wasm.F32ConvertUFromI64
+          ConvertUInt64ToFloat64 -> pure Wasm.F64ConvertUFromI64
+          PromoteFloat32 -> pure Wasm.F64PromoteFromF32
+          DemoteFloat64 -> pure Wasm.F32DemoteFromF64
+          ReinterpretInt32 -> pure Wasm.F32ReinterpretFromI32
+          ReinterpretInt64 -> pure Wasm.F64ReinterpretFromI64
+          _ -> throwError $ UnsupportedExpression expr
       pure $ x <> op
     Binary {..} -> do
       x <- makeInstructions _module_symtable _de_bruijn_ctx operand0
       y <- makeInstructions _module_symtable _de_bruijn_ctx operand1
-      op <- DList.singleton <$> undefined
+      op <-
+        DList.singleton <$>
+        case binaryOp of
+          AddInt32 -> pure Wasm.I32Add
+          SubInt32 -> pure Wasm.I32Sub
+          MulInt32 -> pure Wasm.I32Mul
+          DivSInt32 -> pure Wasm.I32DivS
+          DivUInt32 -> pure Wasm.I32DivU
+          RemSInt32 -> pure Wasm.I32RemS
+          RemUInt32 -> pure Wasm.I32RemU
+          AndInt32 -> pure Wasm.I32And
+          OrInt32 -> pure Wasm.I32Or
+          XorInt32 -> pure Wasm.I32Xor
+          ShlInt32 -> pure Wasm.I32Shl
+          ShrUInt32 -> pure Wasm.I32ShrU
+          ShrSInt32 -> pure Wasm.I32ShrS
+          RotLInt32 -> pure Wasm.I32RotL
+          RotRInt32 -> pure Wasm.I32RotR
+          EqInt32 -> pure Wasm.I32Eq
+          NeInt32 -> pure Wasm.I32Ne
+          LtSInt32 -> pure Wasm.I32LtS
+          LtUInt32 -> pure Wasm.I32LtU
+          LeSInt32 -> pure Wasm.I32LeS
+          LeUInt32 -> pure Wasm.I32LeU
+          GtSInt32 -> pure Wasm.I32GtS
+          GtUInt32 -> pure Wasm.I32GtU
+          GeSInt32 -> pure Wasm.I32GeS
+          GeUInt32 -> pure Wasm.I32GeU
+          AddInt64 -> pure Wasm.I64Add
+          SubInt64 -> pure Wasm.I64Sub
+          MulInt64 -> pure Wasm.I64Mul
+          DivSInt64 -> pure Wasm.I64DivS
+          DivUInt64 -> pure Wasm.I64DivU
+          RemSInt64 -> pure Wasm.I64RemS
+          RemUInt64 -> pure Wasm.I64RemU
+          AndInt64 -> pure Wasm.I64And
+          OrInt64 -> pure Wasm.I64Or
+          XorInt64 -> pure Wasm.I64Xor
+          ShlInt64 -> pure Wasm.I64Shl
+          ShrUInt64 -> pure Wasm.I64ShrU
+          ShrSInt64 -> pure Wasm.I64ShrS
+          RotLInt64 -> pure Wasm.I64RotL
+          RotRInt64 -> pure Wasm.I64RotR
+          EqInt64 -> pure Wasm.I64Eq
+          NeInt64 -> pure Wasm.I64Ne
+          LtSInt64 -> pure Wasm.I64LtS
+          LtUInt64 -> pure Wasm.I64LtU
+          LeSInt64 -> pure Wasm.I64LeS
+          LeUInt64 -> pure Wasm.I64LeU
+          GtSInt64 -> pure Wasm.I64GtS
+          GtUInt64 -> pure Wasm.I64GtU
+          GeSInt64 -> pure Wasm.I64GeS
+          GeUInt64 -> pure Wasm.I64GeU
+          AddFloat32 -> pure Wasm.F32Add
+          SubFloat32 -> pure Wasm.F32Sub
+          MulFloat32 -> pure Wasm.F32Mul
+          DivFloat32 -> pure Wasm.F32Div
+          CopySignFloat32 -> pure Wasm.F32Copysign
+          MinFloat32 -> pure Wasm.F32Min
+          MaxFloat32 -> pure Wasm.F32Max
+          EqFloat32 -> pure Wasm.F32Eq
+          NeFloat32 -> pure Wasm.F32Ne
+          LtFloat32 -> pure Wasm.F32Lt
+          LeFloat32 -> pure Wasm.F32Le
+          GtFloat32 -> pure Wasm.F32Gt
+          GeFloat32 -> pure Wasm.F32Ge
+          AddFloat64 -> pure Wasm.F64Add
+          SubFloat64 -> pure Wasm.F64Sub
+          MulFloat64 -> pure Wasm.F64Mul
+          DivFloat64 -> pure Wasm.F64Div
+          CopySignFloat64 -> pure Wasm.F64Copysign
+          MinFloat64 -> pure Wasm.F64Min
+          MaxFloat64 -> pure Wasm.F64Max
+          EqFloat64 -> pure Wasm.F64Eq
+          NeFloat64 -> pure Wasm.F64Ne
+          LtFloat64 -> pure Wasm.F64Lt
+          LeFloat64 -> pure Wasm.F64Le
+          GtFloat64 -> pure Wasm.F64Gt
+          GeFloat64 -> pure Wasm.F64Ge
       pure $ x <> y <> op
     Host {..} -> do
       let op =
