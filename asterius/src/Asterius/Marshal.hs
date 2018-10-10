@@ -82,11 +82,6 @@ marshalUnaryOp op =
     TruncUFloat64ToInt64 -> c_BinaryenTruncUFloat64ToInt64
     ReinterpretFloat32 -> c_BinaryenReinterpretFloat32
     ReinterpretFloat64 -> c_BinaryenReinterpretFloat64
-    ExtendS8Int32 -> c_BinaryenExtendS8Int32
-    ExtendS16Int32 -> c_BinaryenExtendS16Int32
-    ExtendS8Int64 -> c_BinaryenExtendS8Int64
-    ExtendS16Int64 -> c_BinaryenExtendS16Int64
-    ExtendS32Int64 -> c_BinaryenExtendS32Int64
     ConvertSInt32ToFloat32 -> c_BinaryenConvertSInt32ToFloat32
     ConvertSInt32ToFloat64 -> c_BinaryenConvertSInt32ToFloat64
     ConvertUInt32ToFloat32 -> c_BinaryenConvertUInt32ToFloat32
@@ -227,16 +222,14 @@ marshalExpression pool m e =
       c_BinaryenLoop m np b
     Break {..} -> do
       c <- marshalExpression pool m condition
-      v <- marshalExpression pool m value
       np <- marshalSBS pool name
-      c_BinaryenBreak m np c v
+      c_BinaryenBreak m np c nullPtr
     Switch {..} -> do
       c <- marshalExpression pool m condition
-      v <- marshalExpression pool m value
       ns <- forM names $ marshalSBS pool
       (nsp, nl) <- marshalV pool ns
       dn <- marshalSBS pool defaultName
-      c_BinaryenSwitch m nsp nl dn c v
+      c_BinaryenSwitch m nsp nl dn c nullPtr
     Call {..} -> do
       os <- forM operands $ marshalExpression pool m
       (ops, osl) <- marshalV pool os
@@ -257,9 +250,6 @@ marshalExpression pool m e =
     SetLocal {..} -> do
       v <- marshalExpression pool m value
       c_BinaryenSetLocal m index v
-    TeeLocal {..} -> do
-      v <- marshalExpression pool m value
-      c_BinaryenTeeLocal m index v
     GetGlobal {..} -> do
       np <- marshalSBS pool name
       c_BinaryenGetGlobal m np (marshalValueType valueType)
@@ -285,8 +275,6 @@ marshalExpression pool m e =
     ConstI64 x -> c_BinaryenConstInt64 m x
     ConstF32 x -> c_BinaryenConstFloat32 m x
     ConstF64 x -> c_BinaryenConstFloat64 m x
-    ConstF32Bits x -> c_BinaryenConstFloat32Bits m x
-    ConstF64Bits x -> c_BinaryenConstFloat64Bits m x
     Unary {..} -> do
       x <- marshalExpression pool m operand0
       c_BinaryenUnary m (marshalUnaryOp unaryOp) x
@@ -294,17 +282,6 @@ marshalExpression pool m e =
       x <- marshalExpression pool m operand0
       y <- marshalExpression pool m operand1
       c_BinaryenBinary m (marshalBinaryOp binaryOp) x y
-    Select {..} -> do
-      c <- marshalExpression pool m condition
-      t <- marshalExpression pool m ifTrue
-      f <- marshalExpression pool m ifFalse
-      c_BinaryenSelect m c t f
-    Drop {..} -> do
-      v <- marshalExpression pool m value
-      c_BinaryenDrop m v
-    Return {..} -> do
-      v <- marshalExpression pool m value
-      c_BinaryenReturn m v
     Host {..} -> do
       xs <- forM operands $ marshalExpression pool m
       (es, en) <- marshalV pool xs

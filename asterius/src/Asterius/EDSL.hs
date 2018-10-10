@@ -382,8 +382,7 @@ if' vt cond t f = do
       }
 
 break' :: Label -> Expression -> EDSL ()
-break' (Label lbl) cond =
-  emit Break {name = lbl, condition = cond, value = Null}
+break' (Label lbl) cond = emit Break {name = lbl, condition = cond}
 
 whileLoop :: ValueType -> Expression -> EDSL () -> EDSL ()
 whileLoop vt cond body =

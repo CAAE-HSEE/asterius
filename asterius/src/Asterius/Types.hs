@@ -260,11 +260,6 @@ data UnaryOp
   | TruncUFloat64ToInt64
   | ReinterpretFloat32
   | ReinterpretFloat64
-  | ExtendS8Int32
-  | ExtendS16Int32
-  | ExtendS8Int64
-  | ExtendS16Int64
-  | ExtendS32Int64
   | ConvertSInt32ToFloat32
   | ConvertSInt32ToFloat64
   | ConvertUInt32ToFloat32
@@ -388,10 +383,10 @@ data Expression
   | Loop { name :: SBS.ShortByteString
          , body :: Expression }
   | Break { name :: SBS.ShortByteString
-          , condition, value :: Expression }
+          , condition :: Expression }
   | Switch { names :: [SBS.ShortByteString]
            , defaultName :: SBS.ShortByteString
-           , condition, value :: Expression }
+           , condition :: Expression }
   | Call { target :: AsteriusEntitySymbol
          , operands :: [Expression]
          , valueType :: ValueType }
@@ -404,8 +399,6 @@ data Expression
   | GetLocal { index :: BinaryenIndex
              , valueType :: ValueType }
   | SetLocal { index :: BinaryenIndex
-             , value :: Expression }
-  | TeeLocal { index :: BinaryenIndex
              , value :: Expression }
   | GetGlobal { name :: SBS.ShortByteString
               , valueType :: ValueType }
@@ -422,15 +415,10 @@ data Expression
   | ConstI64 Int64
   | ConstF32 Float
   | ConstF64 Double
-  | ConstF32Bits Int32
-  | ConstF64Bits Int64
   | Unary { unaryOp :: UnaryOp
           , operand0 :: Expression }
   | Binary { binaryOp :: BinaryOp
            , operand0, operand1 :: Expression }
-  | Select { condition, ifTrue, ifFalse :: Expression }
-  | Drop { value :: Expression }
-  | Return { value :: Expression }
   | Host { hostOp :: HostOp
          , name :: SBS.ShortByteString
          , operands :: [Expression] }

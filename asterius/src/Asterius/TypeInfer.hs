@@ -19,7 +19,6 @@ infer expr =
     CallIndirect {} -> I64
     GetLocal {..} -> valueType
     SetLocal {..} -> None
-    TeeLocal {..} -> infer value
     GetGlobal {..} -> valueType
     SetGlobal {..} -> None
     Load {..} -> valueType
@@ -28,13 +27,8 @@ infer expr =
     ConstI64 {} -> I64
     ConstF32 {} -> F32
     ConstF64 {} -> F64
-    ConstF32Bits {} -> F32
-    ConstF64Bits {} -> F64
     Unary {unaryOp = WrapInt64} -> I32
     Unary {unaryOp = ExtendUInt32} -> I64
-    Select {..} -> infer ifTrue
-    Drop {..} -> None
-    Return {..} -> infer value
     Host {..} -> I32
     Nop -> None
     Unreachable -> None
@@ -61,4 +55,4 @@ infer expr =
     UnresolvedSetGlobal {..} -> None
     EmitErrorMessage {..} -> valueType
     Null -> None
-    _ -> error $ show expr
+    _ -> error $ "Asterius.TypeInfer.infer: " <> show expr

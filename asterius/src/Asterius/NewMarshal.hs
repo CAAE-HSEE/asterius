@@ -412,7 +412,6 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
           DemoteFloat64 -> pure Wasm.F32DemoteFromF64
           ReinterpretInt32 -> pure Wasm.F32ReinterpretFromI32
           ReinterpretInt64 -> pure Wasm.F64ReinterpretFromI64
-          _ -> throwError $ UnsupportedExpression expr
       pure $ x <> op
     Binary {..} -> do
       x <- makeInstructions _module_symtable _de_bruijn_ctx operand0
