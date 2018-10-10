@@ -54,6 +54,7 @@ dependencies:
   - optparse-applicative
   - parsec
   - process
+  - wasm-toolkit
 
 library:
   source-dirs: src
