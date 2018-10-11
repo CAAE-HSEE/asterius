@@ -458,26 +458,36 @@ instance Binary Function
 
 data FunctionImport = FunctionImport
   { internalName, externalModuleName, externalBaseName, functionTypeName :: SBS.ShortByteString
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary FunctionImport
 
 data FunctionExport = FunctionExport
   { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary FunctionExport
 
 newtype FunctionTable = FunctionTable
   { functionNames :: [SBS.ShortByteString]
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary FunctionTable
 
 data DataSegment = DataSegment
   { content :: SBS.ShortByteString
   , offset :: Expression
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary DataSegment
 
 data Memory = Memory
   { initialPages, maximumPages :: BinaryenIndex
   , exportName :: SBS.ShortByteString
   , dataSegments :: [DataSegment]
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary Memory
 
 data Module = Module
   { functionTypeMap :: M.Map SBS.ShortByteString FunctionType
@@ -486,7 +496,9 @@ data Module = Module
   , functionExports :: [FunctionExport]
   , functionTable :: FunctionTable
   , memory :: Memory
-  } deriving (Show, Data)
+  } deriving (Show, Data, Generic)
+
+instance Binary Module
 
 data RelooperAddBlock
   = AddBlock { code :: Expression }
