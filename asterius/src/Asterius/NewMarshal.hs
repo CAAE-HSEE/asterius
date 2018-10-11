@@ -59,12 +59,12 @@ makeModuleSymbolTable Module {..} = do
                         Map.fromDistinctAscList $
                         zip (Map.keys functionTypeMap) (coerce [0 :: Word32 ..])
                     , functionSymbols =
-                        Map.fromDistinctAscList $
+                        Map.fromList $
                         zip
                           (_func_import_syms <> _func_syms)
                           (coerce [0 :: Word32 ..])
                     , globalSymbols =
-                        Map.fromDistinctAscList $
+                        Map.fromList $
                         zip
                           (_global_import_syms <> _global_syms)
                           (coerce [0 :: Word32 ..])

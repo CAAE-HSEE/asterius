@@ -4,6 +4,7 @@
 
 module Language.WebAssembly.WireFormat.Orphans
   ( genModule
+  , shrinkModule
   ) where
 
 import qualified Data.ByteString.Short as SBS
@@ -556,3 +557,37 @@ instance Arbitrary Section where
 
 genModule :: Gen Module
 genModule = Module <$> listOf genSection
+
+isCodeSection :: Section -> Bool
+isCodeSection sec =
+  case sec of
+    CodeSection {} -> True
+    _ -> False
+
+shrinkedFunction :: Function
+shrinkedFunction =
+  Function {functionLocals = [], functionBody = coerce [Unreachable]}
+
+updateList :: Int -> a -> [a] -> [a]
+updateList i a l = l0 <> (a : l1)
+  where
+    (l0, _:l1) = splitAt i l
+
+shrinkCodeSection :: [Function] -> [[Function]]
+shrinkCodeSection _sec =
+  concat
+    [ if _sec !! i == shrinkedFunction
+      then []
+      else [updateList i shrinkedFunction _sec]
+    | i <- [0 .. length _sec - 1]
+    ]
+
+shrinkModule :: Module -> [Module]
+shrinkModule m =
+  case break isCodeSection (coerce m) of
+    (_, []) -> []
+    (_pre_code_secs, _code_sec:post_code_secs) ->
+      [ coerce $
+      _pre_code_secs <> (CodeSection _shrinked_code_sec : post_code_secs)
+      | _shrinked_code_sec <- shrinkCodeSection $ functions' _code_sec
+      ]

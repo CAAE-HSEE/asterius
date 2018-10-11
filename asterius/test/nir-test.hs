@@ -34,12 +34,12 @@ main = do
                                   })
                             , ( ".odd"
                               , RelooperBlock
-                                  { addBlock = AddBlock $ Return $ ConstI32 19
+                                  { addBlock = AddBlock $ ConstI32 19
                                   , addBranches = []
                                   })
                             , ( ".def"
                               , RelooperBlock
-                                  { addBlock = AddBlock $ Return $ ConstI32 233
+                                  { addBlock = AddBlock $ ConstI32 233
                                   , addBranches = []
                                   })
                             ]

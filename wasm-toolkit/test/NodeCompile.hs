@@ -1,5 +1,5 @@
 module NodeCompile
-  ( testNodeCompile
+  ( testNodeCompileWithShrink
   ) where
 
 import Control.Exception
@@ -29,7 +29,7 @@ testNodeCompile m =
              (_exit_code, _stdout, _stderr) <-
                readProcessWithExitCode
                  "node"
-                 ["wasm-toolkit" </> "test" </> "node-compile.js", p]
+                 ["test" </> "node-compile.js", p]
                  ""
              case _exit_code of
                ExitSuccess -> pure Nothing
@@ -51,3 +51,6 @@ testNodeCompile m =
         "\nModule dump path: " <>
         p_err
       _ -> pure ()
+
+testNodeCompileWithShrink :: (Module -> [Module]) -> Module -> Property
+testNodeCompileWithShrink s m = shrinking s m testNodeCompile
