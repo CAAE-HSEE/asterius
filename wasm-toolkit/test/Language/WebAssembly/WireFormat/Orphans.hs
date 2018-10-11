@@ -558,10 +558,26 @@ instance Arbitrary Section where
 genModule :: Gen Module
 genModule = Module <$> listOf genSection
 
-isCodeSection :: Section -> Bool
+isExportSection, isElementSection, isCodeSection, isDataSection ::
+     Section -> Bool
+isExportSection sec =
+  case sec of
+    ExportSection {} -> True
+    _ -> False
+
+isElementSection sec =
+  case sec of
+    ElementSection {} -> True
+    _ -> False
+
 isCodeSection sec =
   case sec of
     CodeSection {} -> True
+    _ -> False
+
+isDataSection sec =
+  case sec of
+    DataSection {} -> True
     _ -> False
 
 shrinkedFunction :: Function
@@ -584,10 +600,19 @@ shrinkCodeSection _sec =
 
 shrinkModule :: Module -> [Module]
 shrinkModule m =
-  case break isCodeSection (coerce m) of
-    (_, []) -> []
-    (_pre_code_secs, _code_sec:post_code_secs) ->
-      [ coerce $
-      _pre_code_secs <> (CodeSection _shrinked_code_sec : post_code_secs)
-      | _shrinked_code_sec <- shrinkCodeSection $ functions' _code_sec
-      ]
+  _drop_sec isExportSection <> _drop_sec isElementSection <>
+  _results_by_code_sec <>
+  _drop_sec isDataSection
+  where
+    _drop_sec f =
+      case break f (coerce m) of
+        (_, []) -> []
+        (_pre_secs, _:_post_secs) -> [coerce $ _pre_secs <> _post_secs]
+    _results_by_code_sec =
+      case break isCodeSection (coerce m) of
+        (_, []) -> []
+        (_pre_code_secs, _code_sec:_post_code_secs) ->
+          [ coerce $
+          _pre_code_secs <> (CodeSection _shrinked_code_sec : _post_code_secs)
+          | _shrinked_code_sec <- shrinkCodeSection $ functions' _code_sec
+          ]
