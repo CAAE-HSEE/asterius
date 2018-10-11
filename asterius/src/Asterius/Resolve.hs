@@ -531,17 +531,12 @@ resolveAsteriusModule debug bundled_ffi_state export_funcs m_globals_resolved = 
               ]
         , functionMap' = new_function_map
         , functionImports = [resolveFunctionImport imp | imp <- func_imports]
-        , tableImports = []
-        , globalImports = []
         , functionExports =
             rtsAsteriusFunctionExports debug <>
             [ FunctionExport
               {internalName = "__asterius_jsffi_export_" <> k, externalName = k}
             | k <- map entityName export_funcs
             ]
-        , tableExports = []
-        , globalExports = []
-        , globalMap = M.fromList []
         , functionTable = Just func_table
         , memory =
             Just $ makeMemory debug m_globals_syms_resolved last_o ss_sym_map

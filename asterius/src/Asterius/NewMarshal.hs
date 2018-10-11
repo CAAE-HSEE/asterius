@@ -35,7 +35,6 @@ instance Exception MarshalError
 data ModuleSymbolTable = ModuleSymbolTable
   { functionTypeSymbols :: Map.Map SBS.ShortByteString Wasm.FunctionTypeIndex
   , functionSymbols :: Map.Map SBS.ShortByteString Wasm.FunctionIndex
-  , globalSymbols :: Map.Map SBS.ShortByteString Wasm.GlobalIndex
   }
 
 makeModuleSymbolTable ::
@@ -46,29 +45,17 @@ makeModuleSymbolTable Module {..} = do
         [internalName | FunctionImport {..} <- functionImports]
       _func_syms = Map.keys functionMap'
       _func_conflict_syms = _func_import_syms `intersect` _func_syms
-      _global_import_syms = [internalName | GlobalImport {..} <- globalImports]
-      _global_syms = Map.keys globalMap
-      _global_conflict_syms = _global_import_syms `intersect` _global_syms
   if _has_dup _func_import_syms
     then throwError DuplicateFunctionImport
-    else if _has_dup _global_import_syms
-           then throwError DuplicateGlobalImport
-           else pure
-                  ModuleSymbolTable
-                    { functionTypeSymbols =
-                        Map.fromDistinctAscList $
-                        zip (Map.keys functionTypeMap) (coerce [0 :: Word32 ..])
-                    , functionSymbols =
-                        Map.fromList $
-                        zip
-                          (_func_import_syms <> _func_syms)
-                          (coerce [0 :: Word32 ..])
-                    , globalSymbols =
-                        Map.fromList $
-                        zip
-                          (_global_import_syms <> _global_syms)
-                          (coerce [0 :: Word32 ..])
-                    }
+    else pure
+           ModuleSymbolTable
+             { functionTypeSymbols =
+                 Map.fromDistinctAscList $
+                 zip (Map.keys functionTypeMap) (coerce [0 :: Word32 ..])
+             , functionSymbols =
+                 Map.fromList $
+                 zip (_func_import_syms <> _func_syms) (coerce [0 :: Word32 ..])
+             }
 
 makeResultType :: ValueType -> [Wasm.ValueType]
 makeResultType vt =

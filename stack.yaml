@@ -25,6 +25,10 @@ setup-info:
         url: https://ci.appveyor.com/api/buildjobs/u4xad1iq4w7c3fi4/artifacts/ghc/ghc-bindist/ghc-8.7.20180924-x86_64-unknown-mingw32.tar.xz
         sha256: 5a155d470b2d9683042de2272e731b98110411f22f7a75a84b9fd7b9153ed88f
     linux64:
-      8.7.20180924:
-        url: https://1690-111412813-gh.circle-artifacts.com/0/tmp/ghc-bindist/ghc-8.7.20180924-x86_64-unknown-linux.tar.xz
-        sha256: 50ea100dc414a90e44df15e7400d4c4f7c2b6fe23763ac214b7589fa971380c2
+      8.7.20181010:
+        url: https://1724-111412813-gh.circle-artifacts.com/0/tmp/ghc-bindist/ghc-8.7.20181010-x86_64-unknown-linux.tar.xz
+        sha256: 2657286239731531a0a462787f2ba48cc405bbb633e65464b98319df75b7c4b2
+    macosx:
+      8.7.20181010:
+        url: https://1723-111412813-gh.circle-artifacts.com/0/tmp/ghc-bindist/ghc-8.7.20181010-x86_64-apple-darwin.tar.xz
+        sha256: 996751c8bb47022db81c83449aa4f85ece3895c8d682eba1a4adc4e6132c301b

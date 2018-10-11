@@ -32,12 +32,7 @@ module Asterius.Types
   , Expression(..)
   , Function(..)
   , FunctionImport(..)
-  , TableImport(..)
-  , GlobalImport(..)
   , FunctionExport(..)
-  , TableExport(..)
-  , GlobalExport(..)
-  , Global(..)
   , FunctionTable(..)
   , DataSegment(..)
   , Memory(..)
@@ -466,31 +461,8 @@ data FunctionImport = FunctionImport
   { internalName, externalModuleName, externalBaseName, functionTypeName :: SBS.ShortByteString
   } deriving (Show, Data)
 
-data TableImport = TableImport
-  { internalName, externalModuleName, externalBaseName :: SBS.ShortByteString
-  } deriving (Show, Data)
-
-data GlobalImport = GlobalImport
-  { internalName, externalModuleName, externalBaseName :: SBS.ShortByteString
-  , globalType :: ValueType
-  } deriving (Show, Data)
-
 data FunctionExport = FunctionExport
   { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show, Data)
-
-data TableExport = TableExport
-  { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show, Data)
-
-data GlobalExport = GlobalExport
-  { internalName, externalName :: SBS.ShortByteString
-  } deriving (Show, Data)
-
-data Global = Global
-  { valueType :: ValueType
-  , mutable :: Bool
-  , initValue :: Expression
   } deriving (Show, Data)
 
 newtype FunctionTable = FunctionTable
@@ -512,12 +484,7 @@ data Module = Module
   { functionTypeMap :: M.Map SBS.ShortByteString FunctionType
   , functionMap' :: M.Map SBS.ShortByteString Function
   , functionImports :: [FunctionImport]
-  , tableImports :: [TableImport]
-  , globalImports :: [GlobalImport]
   , functionExports :: [FunctionExport]
-  , tableExports :: [TableExport]
-  , globalExports :: [GlobalExport]
-  , globalMap :: M.Map SBS.ShortByteString Global
   , functionTable :: Maybe FunctionTable
   , memory :: Maybe Memory
   , startFunctionName :: Maybe SBS.ShortByteString
@@ -529,12 +496,7 @@ emptyModule =
     { functionTypeMap = []
     , functionMap' = []
     , functionImports = []
-    , tableImports = []
-    , globalImports = []
     , functionExports = []
-    , tableExports = []
-    , globalExports = []
-    , globalMap = []
     , functionTable = Nothing
     , memory = Nothing
     , startFunctionName = Nothing

@@ -341,51 +341,12 @@ marshalFunctionImport pool m ft FunctionImport {..} = do
   ebp <- marshalSBS pool externalBaseName
   c_BinaryenAddFunctionImport m inp emp ebp ft
 
-marshalTableImport :: Pool -> BinaryenModuleRef -> TableImport -> IO ()
-marshalTableImport pool m TableImport {..} = do
-  inp <- marshalSBS pool internalName
-  emp <- marshalSBS pool externalModuleName
-  ebp <- marshalSBS pool externalBaseName
-  c_BinaryenAddTableImport m inp emp ebp
-
-marshalGlobalImport :: Pool -> BinaryenModuleRef -> GlobalImport -> IO ()
-marshalGlobalImport pool m GlobalImport {..} = do
-  inp <- marshalSBS pool internalName
-  emp <- marshalSBS pool externalModuleName
-  ebp <- marshalSBS pool externalBaseName
-  c_BinaryenAddGlobalImport m inp emp ebp (marshalValueType globalType)
-
 marshalFunctionExport ::
      Pool -> BinaryenModuleRef -> FunctionExport -> IO BinaryenExportRef
 marshalFunctionExport pool m FunctionExport {..} = do
   inp <- marshalSBS pool internalName
   enp <- marshalSBS pool externalName
   c_BinaryenAddFunctionExport m inp enp
-
-marshalTableExport ::
-     Pool -> BinaryenModuleRef -> TableExport -> IO BinaryenExportRef
-marshalTableExport pool m TableExport {..} = do
-  inp <- marshalSBS pool internalName
-  enp <- marshalSBS pool externalName
-  c_BinaryenAddTableExport m inp enp
-
-marshalGlobalExport ::
-     Pool -> BinaryenModuleRef -> GlobalExport -> IO BinaryenExportRef
-marshalGlobalExport pool m GlobalExport {..} = do
-  inp <- marshalSBS pool internalName
-  enp <- marshalSBS pool externalName
-  c_BinaryenAddGlobalExport m inp enp
-
-marshalGlobal ::
-     Pool
-  -> BinaryenModuleRef
-  -> SBS.ShortByteString
-  -> Global
-  -> IO BinaryenGlobalRef
-marshalGlobal pool m k Global {..} = do
-  i <- marshalExpression pool m initValue
-  kp <- marshalSBS pool k
-  c_BinaryenAddGlobal m kp (marshalValueType valueType) (marshalBool mutable) i
 
 marshalFunctionTable :: Pool -> BinaryenModuleRef -> FunctionTable -> IO ()
 marshalFunctionTable pool m FunctionTable {..} = do
@@ -439,12 +400,7 @@ marshalModule pool Module {..} = do
       pure (k, fp)
   forM_ functionImports $ \fi@FunctionImport {..} ->
     marshalFunctionImport pool m (ftps ! functionTypeName) fi
-  forM_ tableImports $ marshalTableImport pool m
-  forM_ globalImports $ marshalGlobalImport pool m
   forM_ functionExports $ marshalFunctionExport pool m
-  forM_ tableExports $ marshalTableExport pool m
-  forM_ globalExports $ marshalGlobalExport pool m
-  for_ (M.toList globalMap) $ uncurry (marshalGlobal pool m)
   case functionTable of
     Just ft -> marshalFunctionTable pool m ft
     _ -> pure ()
