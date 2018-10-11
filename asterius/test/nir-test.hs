@@ -13,7 +13,7 @@ main = do
   m <-
     withPool $ \pool ->
       marshalModule pool $
-      emptyModule
+      Module
         { functionTypeMap = [("func_type", FunctionType I32 [])]
         , functionMap' =
             [ ( "func"
@@ -47,6 +47,10 @@ main = do
                         }
                   })
             ]
+        , functionImports = []
+        , functionExports = []
+        , functionTable = FunctionTable []
+        , memory = Memory 1 1 mempty mempty
         }
   c_BinaryenModulePrint m
   c_BinaryenModuleValidate m >>= print
