@@ -537,10 +537,8 @@ resolveAsteriusModule debug bundled_ffi_state export_funcs m_globals_resolved = 
               {internalName = "__asterius_jsffi_export_" <> k, externalName = k}
             | k <- map entityName export_funcs
             ]
-        , functionTable = Just func_table
-        , memory =
-            Just $ makeMemory debug m_globals_syms_resolved last_o ss_sym_map
-        , startFunctionName = Nothing
+        , functionTable = func_table
+        , memory = makeMemory debug m_globals_syms_resolved last_o ss_sym_map
         }
   pure (new_mod, ss_sym_map, func_sym_map, err_msgs)
 

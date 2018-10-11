@@ -378,38 +378,21 @@ marshalMemory pool m Memory {..} = do
     sps
     (fromIntegral $ length dataSegments)
 
-marshalStartFunctionName ::
-     BinaryenModuleRef
-  -> M.Map SBS.ShortByteString BinaryenFunctionRef
-  -> SBS.ShortByteString
-  -> IO ()
-marshalStartFunctionName m fps n = c_BinaryenSetStart m (fps ! n)
-
 marshalModule :: Pool -> Module -> IO BinaryenModuleRef
 marshalModule pool Module {..} = do
   m <- c_BinaryenModuleCreate
   ftps <-
-    fmap fromList $
+    fmap M.fromList $
     for (M.toList functionTypeMap) $ \(k, ft) -> do
       ftp <- marshalFunctionType pool m k ft
       pure (k, ftp)
-  fps <-
-    fmap fromList $
-    for (M.toList functionMap') $ \(k, f@Function {..}) -> do
-      fp <- marshalFunction pool m k (ftps ! functionTypeName) f
-      pure (k, fp)
+  for_ (M.toList functionMap') $ \(k, f@Function {..}) ->
+    marshalFunction pool m k (ftps ! functionTypeName) f
   forM_ functionImports $ \fi@FunctionImport {..} ->
     marshalFunctionImport pool m (ftps ! functionTypeName) fi
   forM_ functionExports $ marshalFunctionExport pool m
-  case functionTable of
-    Just ft -> marshalFunctionTable pool m ft
-    _ -> pure ()
-  case memory of
-    Just mem -> marshalMemory pool m mem
-    _ -> pure ()
-  case startFunctionName of
-    Just k -> marshalStartFunctionName m fps k
-    _ -> pure ()
+  marshalFunctionTable pool m functionTable
+  marshalMemory pool m memory
   pure m
 
 relooperAddBlock ::

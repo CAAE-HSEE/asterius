@@ -37,7 +37,6 @@ module Asterius.Types
   , DataSegment(..)
   , Memory(..)
   , Module(..)
-  , emptyModule
   , RelooperAddBlock(..)
   , RelooperAddBranch(..)
   , RelooperBlock(..)
@@ -485,22 +484,9 @@ data Module = Module
   , functionMap' :: M.Map SBS.ShortByteString Function
   , functionImports :: [FunctionImport]
   , functionExports :: [FunctionExport]
-  , functionTable :: Maybe FunctionTable
-  , memory :: Maybe Memory
-  , startFunctionName :: Maybe SBS.ShortByteString
+  , functionTable :: FunctionTable
+  , memory :: Memory
   } deriving (Show, Data)
-
-emptyModule :: Module
-emptyModule =
-  Module
-    { functionTypeMap = []
-    , functionMap' = []
-    , functionImports = []
-    , functionExports = []
-    , functionTable = Nothing
-    , memory = Nothing
-    , startFunctionName = Nothing
-    }
 
 data RelooperAddBlock
   = AddBlock { code :: Expression }

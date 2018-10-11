@@ -132,7 +132,7 @@ makeMemorySection Module {..} =
     Wasm.MemorySection
       { memories =
           case memory of
-            Just Memory {..} ->
+            Memory {..} ->
               [ Wasm.Memory
                   { memoryType =
                       Wasm.MemoryType
@@ -144,7 +144,6 @@ makeMemorySection Module {..} =
                         }
                   }
               ]
-            _ -> []
       }
 
 makeExportSection ::
@@ -161,14 +160,14 @@ makeExportSection Module {..} ModuleSymbolTable {..} =
           | FunctionExport {..} <- functionExports
           ] <>
           case memory of
-            Just Memory {..}
+            Memory {..}
               | not $ SBS.null exportName ->
                 [ Wasm.Export
                     { exportName = coerce exportName
                     , exportDescription = Wasm.ExportMemory $ Wasm.MemoryIndex 0
                     }
                 ]
-            _ -> []
+              | otherwise -> []
       }
 
 makeElementSection ::
@@ -178,7 +177,7 @@ makeElementSection Module {..} ModuleSymbolTable {..} =
     Wasm.ElementSection
       { elements =
           case functionTable of
-            Just FunctionTable {..} ->
+            FunctionTable {..} ->
               [ Wasm.Element
                   { tableIndex = Wasm.TableIndex 0
                   , tableOffset =
@@ -188,7 +187,6 @@ makeElementSection Module {..} ModuleSymbolTable {..} =
                       [functionSymbols ! _func_sym | _func_sym <- functionNames]
                   }
               ]
-            _ -> []
       }
 
 data DeBruijnContext = DeBruijnContext
@@ -520,7 +518,7 @@ makeDataSection ::
      MonadError MarshalError m => Module -> ModuleSymbolTable -> m Wasm.Section
 makeDataSection Module {..} _module_symtable =
   case memory of
-    Just Memory {..} -> do
+    Memory {..} -> do
       segs <-
         for dataSegments $ \DataSegment {..} -> do
           instrs <-
@@ -532,7 +530,6 @@ makeDataSection Module {..} _module_symtable =
               , memoryInitialBytes = content
               }
       pure Wasm.DataSection {dataSegments = segs}
-    _ -> pure Wasm.DataSection {dataSegments = []}
 
 makeModule :: MonadError MarshalError m => Module -> m Wasm.Module
 makeModule m = do
