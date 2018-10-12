@@ -55,6 +55,7 @@ dependencies:
   - optparse-applicative
   - parsec
   - process
+  - QuickCheck
   - wasm-toolkit
 
 library:
@@ -170,4 +171,3 @@ tests:
     main: node-compile.hs
     dependencies:
       - asterius
-      - QuickCheck

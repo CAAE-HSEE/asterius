@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module ShrinkModule
-  ( shrinkExpression
+  ( unsafeShuffle
   , shrinkModule
   ) where
 
@@ -9,6 +9,11 @@ import qualified Asterius.Internals.FList as FList
 import Asterius.Types
 import qualified Data.Map.Strict as Map
 import GHC.Exts
+import System.IO.Unsafe
+import Test.QuickCheck
+
+unsafeShuffle :: [a] -> [a]
+unsafeShuffle = unsafePerformIO . generate . shuffle
 
 type Shrink a = a -> FList.FList a
 
@@ -85,7 +90,7 @@ shrinkModule' m@Module {..} = do
                _ -> False)
           functionMap'
   (_func_to_shrink_key, Function {..}) <-
-    fromList $ toList _function_map_to_shrink
+    fromList $ unsafeShuffle $ toList _function_map_to_shrink
   _shrink_expr <- shrinkExpression body
   pure
     m
