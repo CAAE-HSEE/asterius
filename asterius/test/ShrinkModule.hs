@@ -12,7 +12,7 @@ import GHC.Exts
 type Shrink a = a -> FList.FList a
 
 preserve :: a -> Shrink a -> Shrink a
-preserve def f a = FList.cons def r
+preserve def f a = FList.snoc r def
   where
     r = f a
 
@@ -90,8 +90,4 @@ shrinkModule' m@Module {..} = do
   pure m {functionMap' = _new_func_map}
 
 shrinkModule :: Module -> [Module]
-shrinkModule m =
-  case toList $ shrinkModule' m of
-    [m']
-      | m == m' -> []
-    ms -> ms
+shrinkModule m = filter (/= m) (toList (shrinkModule' m))

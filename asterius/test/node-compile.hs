@@ -62,13 +62,9 @@ testNodeCompile (backend_tag, backend) m =
                    openTempFile tmpdir "wasm-toolkit-test-dump.bin"
                  LBS.hPut h_err $ encode m
                  hClose h_err
-                 (p_err_txt, h_err_txt) <-
-                   openTempFile tmpdir "wasm-toolkit-test-dump.txt"
-                 hPutStr h_err_txt $ show m
-                 hClose h_err_txt
-                 pure $ Just (_exit_code, _stdout, _stderr, p_err, p_err_txt))
+                 pure $ Just (_exit_code, _stdout, _stderr, p_err))
     case _result of
-      Just (_exit_code, _stdout, _stderr, p_err, p_err_txt) ->
+      Just (_exit_code, _stdout, _stderr, p_err) ->
         fail $
         "Compiling serialized module via " <> backend_tag <>
         " backend failed.\nExit code: " <>
@@ -78,9 +74,7 @@ testNodeCompile (backend_tag, backend) m =
         "\nStderr: " <>
         _stderr <>
         "\nModule binary dump path: " <>
-        p_err <>
-        "\nModule text dump path: " <>
-        p_err_txt
+        p_err
       _ -> pure ()
 
 testNodeCompileWithShrink ::
