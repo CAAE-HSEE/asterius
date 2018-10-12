@@ -19,6 +19,7 @@ extra-source-files:
   - test/mealy-chrome/**/*.hs
   - test/mealy-chrome/**/*.html
   - test/mealy-chrome/mealy-driver.js
+  - test/node-compile/node-compile.js
   - test/rtsapi/**/*.hs
   - test/stableptr/**/*.hs
   - test/th/**/*.hs
@@ -163,3 +164,10 @@ tests:
     main: mealy-chrome.hs
     dependencies:
       - asterius
+
+  node-compile:
+    source-dirs: test
+    main: node-compile.hs
+    dependencies:
+      - asterius
+      - QuickCheck
