@@ -7,12 +7,13 @@ module ShrinkModule
 
 import qualified Asterius.Internals.FList as FList
 import Asterius.Types
+import qualified Data.Map.Strict as Map
 import GHC.Exts
 
 type Shrink a = a -> FList.FList a
 
 preserve :: a -> Shrink a -> Shrink a
-preserve def f a = FList.snoc r def
+preserve def f a = FList.cons def r
   where
     r = f a
 
@@ -74,20 +75,31 @@ shrinkExpression =
         pure expr {operands = _new_operands}
       _ -> mempty
 
-shrinkFunction :: Shrink Function
-shrinkFunction Function {..} = do
-  _new_body <- shrinkExpression body
-  pure
-    Function
-      { functionTypeName = functionTypeName
-      , varTypes = varTypes
-      , body = _new_body
-      }
-
 shrinkModule' :: Shrink Module
 shrinkModule' m@Module {..} = do
-  _new_func_map <- traverse shrinkFunction functionMap'
-  pure m {functionMap' = _new_func_map}
+  let (_function_map_no_shrink, _function_map_to_shrink) =
+        Map.partition
+          (\Function {..} ->
+             case body of
+               Unreachable -> True
+               _ -> False)
+          functionMap'
+  (_func_to_shrink_key, Function {..}) <-
+    fromList $ toList _function_map_to_shrink
+  _shrink_expr <- shrinkExpression body
+  pure
+    m
+      { functionMap' =
+          _function_map_no_shrink <>
+          Map.insert
+            _func_to_shrink_key
+            Function
+              { functionTypeName = functionTypeName
+              , varTypes = varTypes
+              , body = _shrink_expr
+              }
+            _function_map_to_shrink
+      }
 
 shrinkModule :: Module -> [Module]
-shrinkModule m = filter (/= m) (toList (shrinkModule' m))
+shrinkModule = toList . shrinkModule'
