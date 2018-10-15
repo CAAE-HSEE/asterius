@@ -450,7 +450,7 @@ getInstruction = do
     0x0E -> BranchTable <$> getVec getLabelIndex <*> getLabelIndex
     0x0F -> pure Return
     0x10 -> Call <$> getFunctionIndex
-    0x11 -> CallIndirect <$> getFunctionTypeIndex
+    0x11 -> CallIndirect <$> getFunctionTypeIndex <* expectWord8 0x00
     0x1A -> pure Drop
     0x1B -> pure Select
     0x20 -> GetLocal <$> getLocalIndex'
@@ -777,6 +777,7 @@ putInstruction instr =
     CallIndirect {..} -> do
       putWord8 0x11
       putFunctionTypeIndex callIndirectFuctionTypeIndex
+      putWord8 0x00
     Drop -> putWord8 0x1A
     Select -> putWord8 0x1B
     GetLocal {..} -> do
