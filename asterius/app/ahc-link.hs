@@ -11,15 +11,19 @@ import Asterius.Builtins
 import Asterius.CodeGen
 import Asterius.Internals
 import Asterius.JSFFI
-import Asterius.Marshal
+import qualified Asterius.Marshal as OldMarshal
+import qualified Asterius.NewMarshal as NewMarshal
 import Asterius.Resolve
 import Asterius.Store
 import Asterius.Types
 import Bindings.Binaryen.Raw
 import Control.Exception
 import Control.Monad
+import Control.Monad.Except
+import Data.Binary.Put
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
+import qualified Data.ByteString.Lazy as LBS
 import Data.IORef
 import Data.List
 import qualified Data.Map.Strict as M
@@ -30,6 +34,7 @@ import qualified GhcPlugins as GHC
 import Language.Haskell.GHC.Toolkit.BuildInfo (ahcGccPath)
 import Language.Haskell.GHC.Toolkit.Constants
 import Language.Haskell.GHC.Toolkit.Run hiding (ghcLibDir)
+import Language.WebAssembly.WireFormat
 import Options.Applicative
 import Prelude hiding (IO)
 import System.Directory
@@ -46,7 +51,7 @@ data Task = Task
   { target :: Target
   , input, outputWasm, outputJS :: FilePath
   , outputLinkReport, outputGraphViz :: Maybe FilePath
-  , debug, optimize, outputIR, run :: Bool
+  , wasmToolkit, debug, optimize, outputIR, run :: Bool
   , heapSize :: Int
   , asteriusInstanceCallback :: String
   , extraGHCFlags :: [String]
@@ -55,7 +60,7 @@ data Task = Task
 
 parseTask :: Parser Task
 parseTask =
-  (\t i m_wasm m_node m_report m_gv dbg opt ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
+  (\t i m_wasm m_node m_report m_gv wasm_toolkit dbg opt ir r m_hs m_with_i ghc_flags export_funcs root_syms ->
      Task
        { target = t
        , input = i
@@ -63,6 +68,7 @@ parseTask =
        , outputJS = fromMaybe (i -<.> "js") m_node
        , outputLinkReport = m_report
        , outputGraphViz = m_gv
+       , wasmToolkit = wasm_toolkit
        , debug = dbg
        , optimize = opt && not dbg
        , outputIR = ir || dbg
@@ -101,8 +107,10 @@ parseTask =
     (strOption
        (long "output-graphviz" <>
         help "Output path of GraphViz file of symbol dependencies")) <*>
+  switch
+    (long "wasm-toolkit" <> help "Enable experimental wasm-toolkit backend") <*>
   switch (long "debug" <> help "Enable debug mode in the runtime") <*>
-  switch (long "optimize" <> help "Enable binaryen & V8 optimization") <*>
+  switch (long "optimize" <> help "Enable V8 optimization") <*>
   switch (long "output-ir" <> help "Output Asterius IR of compiled modules") <*>
   switch (long "run" <> help "Run the compiled module with Node.js") <*>
   optional
@@ -285,21 +293,33 @@ main = do
     (fail "[ERROR] Linking failed")
     (\(final_m, err_msgs) -> do
        when outputIR $ do
-         let p = input -<.> "txt"
-         putStrLn $ "[INFO] Writing linked IR to " <> show p
-         writeFile p $ show final_m
-       putStrLn "[INFO] Invoking binaryen to marshal the WebAssembly module"
-       m_ref <- withPool $ \pool -> marshalModule pool final_m
-       putStrLn "[INFO] Validating the WebAssembly module"
-       pass_validation <- c_BinaryenModuleValidate m_ref
-       when (pass_validation /= 1) $ fail "[ERROR] Validation failed"
-       when optimize $ do
-         putStrLn "[INFO] Invoking binaryen optimizer"
-         c_BinaryenModuleOptimize m_ref
-       putStrLn "[INFO] Serializing the WebAssembly module to the binary form"
-       !m_bin <- serializeModule m_ref
-       putStrLn $ "[INFO] Writing WebAssembly binary to " <> show outputWasm
-       BS.writeFile outputWasm m_bin
+         let p = input -<.> "bin"
+         putStrLn $ "[INFO] Serializing linked IR to " <> show p
+         encodeFile p final_m
+       if wasmToolkit
+         then do
+           putStrLn "[INFO] Converting linked IR to wasm-toolkit IR"
+           let conv_result = runExcept $ NewMarshal.makeModule final_m
+           r <-
+             case conv_result of
+               Left err -> fail $ "[ERROR] Conversion failed with " <> show err
+               Right r -> pure r
+           when outputIR $ do
+             let p = input -<.> "wasm.txt"
+             putStrLn $ "[INFO] Writing wasm-toolkit IR to " <> show p
+             writeFile p $ show r
+           putStrLn $ "[INFO] Writing WebAssembly binary to " <> show outputWasm
+           LBS.writeFile outputWasm $ runPut $ putModule r
+         else do
+           putStrLn "[INFO] Converting linked IR to binaryen IR"
+           m_ref <- withPool $ \pool -> OldMarshal.marshalModule pool final_m
+           putStrLn "[INFO] Validating binaryen IR"
+           pass_validation <- c_BinaryenModuleValidate m_ref
+           when (pass_validation /= 1) $
+             fail "[ERROR] binaryen validation failed"
+           putStrLn $ "[INFO] Writing WebAssembly binary to " <> show outputWasm
+           m_bin <- OldMarshal.serializeModule m_ref
+           BS.writeFile outputWasm m_bin
        putStrLn $ "[INFO] Writing JavaScript to " <> show outputJS
        h <- openBinaryFile outputJS WriteMode
        b <- genNode task report err_msgs
