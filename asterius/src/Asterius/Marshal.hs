@@ -181,16 +181,6 @@ marshalHostOp op =
     CurrentMemory -> c_BinaryenCurrentMemory
     GrowMemory -> c_BinaryenGrowMemory
 
-marshalAtomicRMWOp :: AtomicRMWOp -> BinaryenOp
-marshalAtomicRMWOp op =
-  case op of
-    AtomicRMWAdd -> c_BinaryenAtomicRMWAdd
-    AtomicRMWSub -> c_BinaryenAtomicRMWSub
-    AtomicRMWAnd -> c_BinaryenAtomicRMWAnd
-    AtomicRMWOr -> c_BinaryenAtomicRMWOr
-    AtomicRMWXor -> c_BinaryenAtomicRMWXor
-    AtomicRMWXchg -> c_BinaryenAtomicRMWXchg
-
 marshalFunctionType ::
      Pool
   -> BinaryenModuleRef
@@ -250,13 +240,6 @@ marshalExpression pool m e =
     SetLocal {..} -> do
       v <- marshalExpression pool m value
       c_BinaryenSetLocal m index v
-    GetGlobal {..} -> do
-      np <- marshalSBS pool name
-      c_BinaryenGetGlobal m np (marshalValueType valueType)
-    SetGlobal {..} -> do
-      v <- marshalExpression pool m value
-      np <- marshalSBS pool name
-      c_BinaryenSetGlobal m np v
     Load {..} -> do
       p <- marshalExpression pool m ptr
       c_BinaryenLoad
@@ -289,29 +272,6 @@ marshalExpression pool m e =
       c_BinaryenHost m (marshalHostOp hostOp) np es en
     Nop -> c_BinaryenNop m
     Unreachable -> c_BinaryenUnreachable m
-    AtomicLoad {..} -> do
-      p <- marshalExpression pool m ptr
-      c_BinaryenAtomicLoad m bytes offset (marshalValueType valueType) p
-    AtomicStore {..} -> do
-      p <- marshalExpression pool m ptr
-      v <- marshalExpression pool m value
-      c_BinaryenAtomicStore m bytes offset p v (marshalValueType valueType)
-    AtomicRMW {..} -> do
-      p <- marshalExpression pool m ptr
-      v <- marshalExpression pool m value
-      c_BinaryenAtomicRMW
-        m
-        (marshalAtomicRMWOp atomicRMWOp)
-        bytes
-        offset
-        p
-        v
-        (marshalValueType valueType)
-    AtomicCmpxchg {..} -> do
-      p <- marshalExpression pool m ptr
-      o <- marshalExpression pool m expected
-      n <- marshalExpression pool m replacement
-      c_BinaryenAtomicCmpxchg m bytes offset p o n (marshalValueType valueType)
     CFG {..} -> relooperRun pool m graph
     Null -> pure nullPtr
     _ -> throwIO $ UnsupportedExpression e

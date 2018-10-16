@@ -19,8 +19,6 @@ infer expr =
     CallIndirect {} -> I64
     GetLocal {..} -> valueType
     SetLocal {..} -> None
-    GetGlobal {..} -> valueType
-    SetGlobal {..} -> None
     Load {..} -> valueType
     Store {} -> None
     ConstI32 {} -> I32
@@ -32,10 +30,6 @@ infer expr =
     Host {..} -> I32
     Nop -> None
     Unreachable -> None
-    AtomicLoad {..} -> valueType
-    AtomicStore {} -> None
-    AtomicRMW {..} -> valueType
-    AtomicCmpxchg {..} -> valueType
     CFG {} -> None
     Unresolved {} -> I64
     UnresolvedOff {} -> I64

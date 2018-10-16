@@ -28,7 +28,6 @@ module Asterius.Types
   , UnaryOp(..)
   , BinaryOp(..)
   , HostOp(..)
-  , AtomicRMWOp(..)
   , Expression(..)
   , Function(..)
   , FunctionImport(..)
@@ -358,17 +357,6 @@ data HostOp
 
 instance Binary HostOp
 
-data AtomicRMWOp
-  = AtomicRMWAdd
-  | AtomicRMWSub
-  | AtomicRMWAnd
-  | AtomicRMWOr
-  | AtomicRMWXor
-  | AtomicRMWXchg
-  deriving (Eq, Ord, Show, Generic, Data)
-
-instance Binary AtomicRMWOp
-
 data Expression
   = Block { name :: SBS.ShortByteString
           , bodys :: [Expression]
@@ -394,10 +382,6 @@ data Expression
              , valueType :: ValueType }
   | SetLocal { index :: BinaryenIndex
              , value :: Expression }
-  | GetGlobal { name :: SBS.ShortByteString
-              , valueType :: ValueType }
-  | SetGlobal { name :: SBS.ShortByteString
-              , value :: Expression }
   | Load { signed :: Bool
          , bytes, offset, align :: BinaryenIndex
          , valueType :: ValueType
@@ -418,19 +402,6 @@ data Expression
          , operands :: [Expression] }
   | Nop
   | Unreachable
-  | AtomicLoad { bytes, offset :: BinaryenIndex
-               , valueType :: ValueType
-               , ptr :: Expression }
-  | AtomicStore { bytes, offset :: BinaryenIndex
-                , ptr, value :: Expression
-                , valueType :: ValueType }
-  | AtomicRMW { atomicRMWOp :: AtomicRMWOp
-              , bytes, offset :: BinaryenIndex
-              , ptr, value :: Expression
-              , valueType :: ValueType }
-  | AtomicCmpxchg { bytes, offset :: BinaryenIndex
-                  , ptr, expected, replacement :: Expression
-                  , valueType :: ValueType }
   | CFG { graph :: RelooperRun }
   | Unresolved { unresolvedSymbol :: AsteriusEntitySymbol }
   | UnresolvedOff { unresolvedSymbol :: AsteriusEntitySymbol

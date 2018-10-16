@@ -75,17 +75,5 @@ maskUnknownCCallTargets export_funcs = f
                           }
                       _ -> pure t
                   | otherwise -> pure t
-                AtomicRMW {} ->
-                  pure $
-                  emitErrorMessage I64 "AtomicRMW instruction: unsupported"
-                AtomicLoad {} ->
-                  pure $
-                  emitErrorMessage I64 "AtomicLoad instruction: unsupported"
-                AtomicStore {} ->
-                  pure $
-                  emitErrorMessage None "AtomicStore instruction: unsupported"
-                AtomicCmpxchg {} ->
-                  pure $
-                  emitErrorMessage I64 "AtomicCmpxchg instruction: unsupported"
                 _ -> go
             _ -> go

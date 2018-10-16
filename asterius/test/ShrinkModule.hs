@@ -1,24 +1,19 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module ShrinkModule
-  ( unsafeShuffle
-  , shrinkModule
+  ( shrinkModule
   ) where
 
 import qualified Asterius.Internals.FList as FList
 import Asterius.Types
+import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import GHC.Exts
-import System.IO.Unsafe
-import Test.QuickCheck
-
-unsafeShuffle :: [a] -> [a]
-unsafeShuffle = unsafePerformIO . generate . shuffle
 
 type Shrink a = a -> FList.FList a
 
 preserve :: a -> Shrink a -> Shrink a
-preserve def f a = FList.cons def r
+preserve def f a = FList.snoc r def
   where
     r = f a
 
@@ -81,30 +76,59 @@ shrinkExpression =
       _ -> mempty
 
 shrinkModule' :: Shrink Module
-shrinkModule' m@Module {..} = do
-  let (_function_map_no_shrink, _function_map_to_shrink) =
-        Map.partition
-          (\Function {..} ->
-             case body of
-               Unreachable -> True
-               _ -> False)
-          functionMap'
-  (_func_to_shrink_key, Function {..}) <-
-    fromList $ unsafeShuffle $ toList _function_map_to_shrink
-  _shrink_expr <- shrinkExpression body
-  pure
-    m
-      { functionMap' =
-          _function_map_no_shrink <>
-          Map.insert
-            _func_to_shrink_key
-            Function
-              { functionTypeName = functionTypeName
-              , varTypes = varTypes
-              , body = _shrink_expr
-              }
-            _function_map_to_shrink
-      }
+shrinkModule' m@Module {..} = _shrink_funcs {-_shrink_memory <> _shrink_exports <>-}
+  where
+    _shrink_memory, _shrink_exports, _shrink_funcs :: FList.FList Module
+    _shrink_memory =
+      case memory of
+        Memory {..}
+          | not (SBS.null exportName) || not (null dataSegments) ->
+            pure
+              m {memory = memory {exportName = mempty, dataSegments = mempty}}
+          | otherwise -> mempty
+    _shrink_exports
+      | not (null functionExports) = pure m {functionExports = []}
+      | otherwise = mempty
+    _shrink_funcs = do
+      let (_function_map_no_shrink, _function_map_to_shrink) =
+            Map.partition
+              (\Function {..} ->
+                 case body of
+                   Unreachable -> True
+                   _ -> False)
+              functionMap'
+      (do (_func_to_shrink_key, Function {..}) <-
+            fromList $ toList _function_map_to_shrink
+          pure
+            m
+              { functionMap' =
+                  _function_map_no_shrink <>
+                  Map.insert
+                    _func_to_shrink_key
+                    Function
+                      { functionTypeName = functionTypeName
+                      , varTypes = varTypes
+                      , body = Unreachable
+                      }
+                    _function_map_to_shrink
+              }) <>
+        (do (_func_to_shrink_key, Function {..}) <-
+              fromList $ toList _function_map_to_shrink
+            _shrink_expr <-
+              fromList $ filter (/= body) (toList (shrinkExpression body))
+            pure
+              m
+                { functionMap' =
+                    _function_map_no_shrink <>
+                    Map.insert
+                      _func_to_shrink_key
+                      Function
+                        { functionTypeName = functionTypeName
+                        , varTypes = varTypes
+                        , body = _shrink_expr
+                        }
+                      _function_map_to_shrink
+                })
 
 shrinkModule :: Module -> [Module]
 shrinkModule = toList . shrinkModule'
