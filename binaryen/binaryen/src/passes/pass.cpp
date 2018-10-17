@@ -137,9 +137,9 @@ void PassRegistry::registerPasses() {
 }
 
 void PassRunner::addDefaultOptimizationPasses() {
-  // addDefaultGlobalOptimizationPrePasses();
-  // addDefaultFunctionOptimizationPasses();
-  // addDefaultGlobalOptimizationPostPasses();
+  addDefaultGlobalOptimizationPrePasses();
+  addDefaultFunctionOptimizationPasses();
+  addDefaultGlobalOptimizationPostPasses();
 }
 
 void PassRunner::addDefaultFunctionOptimizationPasses() {
