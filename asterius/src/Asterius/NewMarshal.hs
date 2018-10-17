@@ -300,7 +300,7 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
     Load {..} -> do
       let _mem_arg =
             Wasm.MemoryArgument
-              {memoryArgumentAlignment = align, memoryArgumentOffset = offset}
+              {memoryArgumentAlignment = 0, memoryArgumentOffset = offset}
       op <-
         DList.singleton <$>
         case (signed, bytes, valueType) of
@@ -324,7 +324,7 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
     Store {..} -> do
       let _mem_arg =
             Wasm.MemoryArgument
-              {memoryArgumentAlignment = align, memoryArgumentOffset = offset}
+              {memoryArgumentAlignment = 0, memoryArgumentOffset = offset}
       op <-
         DList.singleton <$>
         case (bytes, valueType) of

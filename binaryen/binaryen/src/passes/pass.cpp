@@ -143,6 +143,7 @@ void PassRunner::addDefaultOptimizationPasses() {
 }
 
 void PassRunner::addDefaultFunctionOptimizationPasses() {
+  /*
   // if we are willing to work very very hard, flatten the IR and do opts
   // that depend on flat IR
   if (options.optimizeLevel >= 4) {
@@ -196,13 +197,17 @@ void PassRunner::addDefaultFunctionOptimizationPasses() {
     add("rse"); // after all coalesce-locals, and before a final vacuum
   }
   add("vacuum"); // just to be safe
+  */
 }
 
 void PassRunner::addDefaultGlobalOptimizationPrePasses() {
+  /*
   add("duplicate-function-elimination");
+  */
 }
 
 void PassRunner::addDefaultGlobalOptimizationPostPasses() {
+  /*
   if (options.optimizeLevel >= 2 || options.shrinkLevel >= 1) {
     add("dae-optimizing");
   }
@@ -221,6 +226,7 @@ void PassRunner::addDefaultGlobalOptimizationPostPasses() {
     add("generate-stack-ir");
     add("optimize-stack-ir");
   }
+  */
 }
 
 static void dumpWast(Name name, Module* wasm) {

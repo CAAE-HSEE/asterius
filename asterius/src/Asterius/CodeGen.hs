@@ -201,23 +201,11 @@ marshalCmmLoad p t = do
       (GHC.typeWidth t)
       (pure
          ( Load
-             { signed = False
-             , bytes = 1
-             , offset = 0
-             , align = 0
-             , valueType = I32
-             , ptr = pv
-             }
+             {signed = False, bytes = 1, offset = 0, valueType = I32, ptr = pv}
          , I32))
       (pure
          ( Load
-             { signed = False
-             , bytes = 2
-             , offset = 0
-             , align = 0
-             , valueType = I32
-             , ptr = pv
-             }
+             {signed = False, bytes = 2, offset = 0, valueType = I32, ptr = pv}
          , I32))
       (do vt <- marshalCmmType t
           pure
@@ -225,7 +213,6 @@ marshalCmmLoad p t = do
                 { signed = False
                 , bytes = 4
                 , offset = 0
-                , align = 0
                 , valueType = vt
                 , ptr = pv
                 }
@@ -236,7 +223,6 @@ marshalCmmLoad p t = do
                 { signed = False
                 , bytes = 8
                 , offset = 0
-                , align = 0
                 , valueType = vt
                 , ptr = pv
                 }
@@ -805,43 +791,19 @@ marshalCmmInstr instr =
           (do xe <- marshalAndCastCmmExpr e I32
               pure
                 Store
-                  { bytes = 1
-                  , offset = 0
-                  , align = 0
-                  , ptr = pv
-                  , value = xe
-                  , valueType = I32
-                  })
+                  {bytes = 1, offset = 0, ptr = pv, value = xe, valueType = I32})
           (do xe <- marshalAndCastCmmExpr e I32
               pure
                 Store
-                  { bytes = 2
-                  , offset = 0
-                  , align = 0
-                  , ptr = pv
-                  , value = xe
-                  , valueType = I32
-                  })
+                  {bytes = 2, offset = 0, ptr = pv, value = xe, valueType = I32})
           (do (xe, vt) <- marshalCmmExpr e
               pure
                 Store
-                  { bytes = 4
-                  , offset = 0
-                  , align = 0
-                  , ptr = pv
-                  , value = xe
-                  , valueType = vt
-                  })
+                  {bytes = 4, offset = 0, ptr = pv, value = xe, valueType = vt})
           (do (xe, vt) <- marshalCmmExpr e
               pure
                 Store
-                  { bytes = 8
-                  , offset = 0
-                  , align = 0
-                  , ptr = pv
-                  , value = xe
-                  , valueType = vt
-                  })
+                  {bytes = 8, offset = 0, ptr = pv, value = xe, valueType = vt})
       pure [store_instr]
     _ -> throwError $ UnsupportedCmmInstr $ showSBS instr
 

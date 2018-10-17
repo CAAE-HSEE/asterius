@@ -115,6 +115,8 @@ genNode Task {..} LinkReport {..} err_msgs = do
 
 ahcLinkMain :: Task -> IO ()
 ahcLinkMain task@Task {..} = do
+  c_BinaryenSetOptimizeLevel 0
+  c_BinaryenSetShrinkLevel 0
   (boot_store, boot_pkgdb) <-
     do (store_path, boot_pkgdb) <-
          do boot_args <- getDefaultBootArgs

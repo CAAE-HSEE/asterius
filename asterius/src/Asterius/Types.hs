@@ -383,10 +383,10 @@ data Expression
   | SetLocal { index :: BinaryenIndex
              , value :: Expression }
   | Load { signed :: Bool
-         , bytes, offset, align :: BinaryenIndex
+         , bytes, offset :: BinaryenIndex
          , valueType :: ValueType
          , ptr :: Expression }
-  | Store { bytes, offset, align :: BinaryenIndex
+  | Store { bytes, offset :: BinaryenIndex
           , ptr, value :: Expression
           , valueType :: ValueType }
   | ConstI32 Int32

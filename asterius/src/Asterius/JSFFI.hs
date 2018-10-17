@@ -516,7 +516,6 @@ generateFFIExportFunction FFIExportDecl {..} =
                               { signed = False
                               , bytes = 8
                               , offset = 0
-                              , align = 0
                               , valueType = I64
                               , ptr =
                                   Unary

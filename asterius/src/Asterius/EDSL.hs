@@ -237,25 +237,11 @@ pointer :: ValueType -> BinaryenIndex -> Expression -> Int -> LVal
 pointer vt b bp o =
   LVal
     { getLVal =
-        Load
-          { signed = False
-          , bytes = b
-          , offset = 0
-          , align = 0
-          , valueType = vt
-          , ptr = p
-          }
+        Load {signed = False, bytes = b, offset = 0, valueType = vt, ptr = p}
     , putLVal =
         \v ->
           emit $
-          Store
-            { bytes = b
-            , offset = 0
-            , align = 0
-            , ptr = p
-            , value = v
-            , valueType = vt
-            }
+          Store {bytes = b, offset = 0, ptr = p, value = v, valueType = vt}
     }
   where
     p =

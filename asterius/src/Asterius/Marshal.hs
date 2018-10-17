@@ -247,13 +247,13 @@ marshalExpression pool m e =
         bytes
         (marshalBool signed)
         offset
-        align
+        1
         (marshalValueType valueType)
         p
     Store {..} -> do
       p <- marshalExpression pool m ptr
       v <- marshalExpression pool m value
-      c_BinaryenStore m bytes offset align p v (marshalValueType valueType)
+      c_BinaryenStore m bytes offset 1 p v (marshalValueType valueType)
     ConstI32 x -> c_BinaryenConstInt32 m x
     ConstI64 x -> c_BinaryenConstInt64 m x
     ConstF32 x -> c_BinaryenConstFloat32 m x

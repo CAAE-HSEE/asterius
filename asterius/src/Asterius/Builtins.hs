@@ -1520,13 +1520,7 @@ loadWrapperFunction _ b vt =
     p = getLocalWord 0
     v =
       Load
-        { signed = False
-        , bytes = b
-        , offset = 0
-        , align = 0
-        , valueType = vt
-        , ptr = wrapI64 p
-        }
+        {signed = False, bytes = b, offset = 0, valueType = vt, ptr = wrapI64 p}
 
 storeWrapperFunction _ b vt =
   AsteriusFunction
@@ -1562,7 +1556,6 @@ storeWrapperFunction _ b vt =
               , Store
                   { bytes = b
                   , offset = 0
-                  , align = 0
                   , ptr = wrapI64 p
                   , value = v
                   , valueType = vt
@@ -1586,8 +1579,7 @@ getFieldWord p o = loadWord (wrapI64 $ fieldOff p o)
 
 loadWord :: Expression -> Expression
 loadWord p =
-  Load
-    {signed = False, bytes = 8, offset = 0, align = 0, valueType = I64, ptr = p}
+  Load {signed = False, bytes = 8, offset = 0, valueType = I64, ptr = p}
 
 wrapI64 :: Expression -> Expression
 wrapI64 w = Unary {unaryOp = WrapInt64, operand0 = w}

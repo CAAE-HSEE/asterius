@@ -124,7 +124,6 @@ resolveGlobalRegs x =
                 { signed = False
                 , bytes = unresolvedGlobalRegBytes unresolvedGlobalReg
                 , offset = 0
-                , align = 0
                 , valueType = unresolvedGlobalRegType unresolvedGlobalReg
                 , ptr = gr_ptr unresolvedGlobalReg
                 }
@@ -140,7 +139,6 @@ resolveGlobalRegs x =
               Store
                 { bytes = unresolvedGlobalRegBytes unresolvedGlobalReg
                 , offset = 0
-                , align = 0
                 , ptr = gr_ptr unresolvedGlobalReg
                 , value = new_value
                 , valueType = unresolvedGlobalRegType unresolvedGlobalReg
