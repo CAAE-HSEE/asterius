@@ -328,7 +328,7 @@ void StackWriter<Mode, Parent>::visitPossibleBlockContents(Expression* curr) {
   if (block->type == unreachable && block->list.back()->type != unreachable) {
     // similar to in visitBlock, here we could skip emitting the block itself,
     // but must still end the 'block' (the contents, really) with an unreachable
-    emitExtraUnreachable();
+    // emitExtraUnreachable();
   }
 }
 
@@ -1191,4 +1191,3 @@ StackInst* StackWriter<Mode, Parent>::makeStackInst(StackInst::Op op, Expression
 } // namespace wasm
 
 #endif // wasm_stack_h
-
