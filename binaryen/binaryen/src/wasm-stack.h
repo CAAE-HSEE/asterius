@@ -365,13 +365,13 @@ void StackWriter<Mode, Parent>::visitBlock(Block* curr) {
 
 template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitBlockEnd(Block* curr) {
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // an unreachable block is one that cannot be exited. We cannot encode this directly
     // in wasm, where blocks must be none,i32,i64,f32,f64. Since the block cannot be
     // exited, we can emit an unreachable at the end, and that will always be valid,
     // and then the block is ok as a none
-    emitExtraUnreachable();
-  }
+    // emitExtraUnreachable();
+  // }
   if (Mode == StackWriterMode::Binaryen2Stack) {
     stackIR.push_back(makeStackInst(StackInst::BlockEnd, curr));
   } else {
@@ -388,13 +388,13 @@ void StackWriter<Mode, Parent>::visitBlockEnd(Block* curr) {
 template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitIf(If* curr) {
   if (debug) std::cerr << "zz node: If" << std::endl;
-  if (curr->condition->type == unreachable) {
+  // if (curr->condition->type == unreachable) {
     // this if-else is unreachable because of the condition, i.e., the condition
     // does not exit. So don't emit the if, but do consume the condition
-    visitChild(curr->condition);
-    emitExtraUnreachable();
-    return;
-  }
+    // visitChild(curr->condition);
+    // emitExtraUnreachable();
+    // return;
+  // }
   visitChild(curr->condition);
   if (Mode == StackWriterMode::Binaryen2Stack) {
     stackIR.push_back(makeStackInst(StackInst::IfBegin, curr));
@@ -437,14 +437,14 @@ void StackWriter<Mode, Parent>::visitIfEnd(If* curr) {
   } else {
     o << int8_t(BinaryConsts::End);
   }
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // we already handled the case of the condition being unreachable. otherwise,
     // we may still be unreachable, if we are an if-else with both sides unreachable.
     // wasm does not allow this to be emitted directly, so we must do something more. we could do
     // better, but for now we emit an extra unreachable instruction after the if, so it is not consumed itself,
-    assert(curr->ifFalse);
-    emitExtraUnreachable();
-  }
+    // assert(curr->ifFalse);
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -468,20 +468,20 @@ template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitLoopEnd(Loop* curr) {
   assert(!breakStack.empty());
   breakStack.pop_back();
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // we emitted a loop without a return type, and the body might be
     // block contents, so ensure it is not consumed
-    emitExtraUnreachable();
-  }
+    // emitExtraUnreachable();
+  // }
   if (Mode == StackWriterMode::Binaryen2Stack) {
     stackIR.push_back(makeStackInst(StackInst::LoopEnd, curr));
   } else {
     o << int8_t(BinaryConsts::End);
   }
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // we emitted a loop without a return type, so it must not be consumed
-    emitExtraUnreachable();
-  }
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -495,7 +495,7 @@ void StackWriter<Mode, Parent>::visitBreak(Break* curr) {
     o << int8_t(curr->condition ? BinaryConsts::BrIf : BinaryConsts::Br)
       << U32LEB(getBreakIndex(curr->name));
   }
-  if (curr->condition && curr->type == unreachable) {
+  // if (curr->condition && curr->type == unreachable) {
     // a br_if is normally none or emits a value. if it is unreachable,
     // then either the condition or the value is unreachable, which is
     // extremely rare, and may require us to make the stack polymorphic
@@ -503,8 +503,8 @@ void StackWriter<Mode, Parent>::visitBreak(Break* curr) {
     // are not a reachable branch; the wasm spec on the other hand does
     // presume the br_if emits a value of the right type, even if it
     // popped unreachable)
-    emitExtraUnreachable();
-  }
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -514,13 +514,13 @@ void StackWriter<Mode, Parent>::visitSwitch(Switch* curr) {
     visitChild(curr->value);
   }
   visitChild(curr->condition);
-  if (!BranchUtils::isBranchReachable(curr)) {
+  // if (!BranchUtils::isBranchReachable(curr)) {
     // if the branch is not reachable, then it's dangerous to emit it, as
     // wasm type checking rules are different, especially in unreachable
     // code. so just don't emit that unreachable code.
-    emitExtraUnreachable();
-    return;
-  }
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   o << int8_t(BinaryConsts::TableSwitch) << U32LEB(curr->targets.size());
   for (auto target : curr->targets) {
@@ -538,9 +538,9 @@ void StackWriter<Mode, Parent>::visitCall(Call* curr) {
   if (!justAddToStack(curr)) {
     o << int8_t(BinaryConsts::CallFunction) << U32LEB(parent.getFunctionIndex(curr->target));
   }
-  if (curr->type == unreachable) { // TODO FIXME: this and similar can be removed
-    emitExtraUnreachable();
-  }
+  // if (curr->type == unreachable) { // TODO FIXME: this and similar can be removed
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -555,9 +555,9 @@ void StackWriter<Mode, Parent>::visitCallIndirect(CallIndirect* curr) {
       << U32LEB(parent.getFunctionTypeIndex(curr->fullType))
       << U32LEB(0); // Reserved flags field
   }
-  if (curr->type == unreachable) {
-    emitExtraUnreachable();
-  }
+  // if (curr->type == unreachable) {
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -574,9 +574,9 @@ void StackWriter<Mode, Parent>::visitSetLocal(SetLocal* curr) {
   if (!justAddToStack(curr)) {
     o << int8_t(curr->isTee() ? BinaryConsts::TeeLocal : BinaryConsts::SetLocal) << U32LEB(mappedLocals[curr->index]);
   }
-  if (curr->type == unreachable) {
-    emitExtraUnreachable();
-  }
+  // if (curr->type == unreachable) {
+    // emitExtraUnreachable();
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
@@ -598,11 +598,11 @@ template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitLoad(Load* curr) {
   if (debug) std::cerr << "zz node: Load" << std::endl;
   visitChild(curr->ptr);
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // don't even emit it; we don't know the right type
-    emitExtraUnreachable();
-    return;
-  }
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   if (!curr->isAtomic) {
     switch (curr->type) {
@@ -664,11 +664,11 @@ void StackWriter<Mode, Parent>::visitStore(Store* curr) {
   if (debug) std::cerr << "zz node: Store" << std::endl;
   visitChild(curr->ptr);
   visitChild(curr->value);
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // don't even emit it; we don't know the right type
-    emitExtraUnreachable();
-    return;
-  }
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   if (!curr->isAtomic) {
     switch (curr->valueType) {
@@ -731,11 +731,11 @@ void StackWriter<Mode, Parent>::visitAtomicRMW(AtomicRMW* curr) {
   if (curr->ptr->type == unreachable) return;
   visitChild(curr->value);
   if (curr->value->type == unreachable) return;
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // don't even emit it; we don't know the right type
-    emitExtraUnreachable();
-    return;
-  }
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
 
   o << int8_t(BinaryConsts::AtomicPrefix);
@@ -788,11 +788,11 @@ void StackWriter<Mode, Parent>::visitAtomicCmpxchg(AtomicCmpxchg* curr) {
   if (curr->expected->type == unreachable) return;
   visitChild(curr->replacement);
   if (curr->replacement->type == unreachable) return;
-  if (curr->type == unreachable) {
+  // if (curr->type == unreachable) {
     // don't even emit it; we don't know the right type
-    emitExtraUnreachable();
-    return;
-  }
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
 
   o << int8_t(BinaryConsts::AtomicPrefix);
@@ -891,10 +891,10 @@ template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitUnary(Unary* curr) {
   if (debug) std::cerr << "zz node: Unary" << std::endl;
   visitChild(curr->value);
-  if (curr->type == unreachable) {
-    emitExtraUnreachable();
-    return;
-  }
+  // if (curr->type == unreachable) {
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   switch (curr->op) {
     case ClzInt32:               o << int8_t(BinaryConsts::I32Clz); break;
@@ -958,10 +958,10 @@ void StackWriter<Mode, Parent>::visitBinary(Binary* curr) {
   if (debug) std::cerr << "zz node: Binary" << std::endl;
   visitChild(curr->left);
   visitChild(curr->right);
-  if (curr->type == unreachable) {
-    emitExtraUnreachable();
-    return;
-  }
+  // if (curr->type == unreachable) {
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   switch (curr->op) {
     case AddInt32:      o << int8_t(BinaryConsts::I32Add); break;
@@ -1053,10 +1053,10 @@ void StackWriter<Mode, Parent>::visitSelect(Select* curr) {
   visitChild(curr->ifTrue);
   visitChild(curr->ifFalse);
   visitChild(curr->condition);
-  if (curr->type == unreachable) {
-    emitExtraUnreachable();
-    return;
-  }
+  // if (curr->type == unreachable) {
+    // emitExtraUnreachable();
+    // return;
+  // }
   if (justAddToStack(curr)) return;
   o << int8_t(BinaryConsts::Select);
 }
