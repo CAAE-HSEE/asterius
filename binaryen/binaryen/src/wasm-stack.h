@@ -1140,11 +1140,13 @@ void StackWriter<Mode, Parent>::emitMemoryAccess(size_t alignment, size_t bytes,
 
 template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::emitExtraUnreachable() {
+  /*
   if (Mode == StackWriterMode::Binaryen2Stack) {
     stackIR.push_back(makeStackInst(Builder(allocator).makeUnreachable()));
   } else if (Mode == StackWriterMode::Binaryen2Binary) {
     o << int8_t(BinaryConsts::Unreachable);
   }
+  */
 }
 
 template<StackWriterMode Mode, typename Parent>
