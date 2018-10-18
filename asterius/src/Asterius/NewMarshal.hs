@@ -494,6 +494,13 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
     Null -> pure mempty
     _ -> throwError $ UnsupportedExpression expr
 
+flattenOneLayer :: Expression -> [Expression]
+flattenOneLayer expr =
+  case expr of
+    Block {..}
+      | SBS.null name -> bodys
+    _ -> [expr]
+
 makeCodeSection ::
      MonadError MarshalError m => Module -> ModuleSymbolTable -> m Wasm.Section
 makeCodeSection Module {..} _module_symtable =
@@ -506,7 +513,10 @@ makeCodeSection Module {..} _module_symtable =
         I64 -> pure Wasm.I64
         F32 -> pure Wasm.F32
         F64 -> pure Wasm.F64
-    _body <- makeInstructions _module_symtable emptyDeBruijnContext body
+    _body <-
+      fmap mconcat $
+      for (flattenOneLayer body) $
+      makeInstructions _module_symtable emptyDeBruijnContext
     pure
       Wasm.Function
         { functionLocals =
