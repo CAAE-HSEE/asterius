@@ -317,19 +317,19 @@ void StackWriter<Mode, Parent>::visit(Expression* curr) {
 // emits a node, but if it is a block with no name, emit a list of its contents
 template<StackWriterMode Mode, typename Parent>
 void StackWriter<Mode, Parent>::visitPossibleBlockContents(Expression* curr) {
-  auto* block = curr->dynCast<Block>();
-  if (!block || BranchUtils::BranchSeeker::hasNamed(block, block->name)) {
+  // auto* block = curr->dynCast<Block>();
+  // if (!block || BranchUtils::BranchSeeker::hasNamed(block, block->name)) {
     visitChild(curr);
-    return;
-  }
-  for (auto* child : block->list) {
-    visitChild(child);
-  }
-  if (block->type == unreachable && block->list.back()->type != unreachable) {
+    // return;
+  // }
+  // for (auto* child : block->list) {
+  //   visitChild(child);
+  // }
+  // if (block->type == unreachable && block->list.back()->type != unreachable) {
     // similar to in visitBlock, here we could skip emitting the block itself,
     // but must still end the 'block' (the contents, really) with an unreachable
     // emitExtraUnreachable();
-  }
+  // }
 }
 
 template<StackWriterMode Mode, typename Parent>
