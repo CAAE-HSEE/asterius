@@ -212,18 +212,58 @@ extractLabel :: DeBruijnContext -> SBS.ShortByteString -> Wasm.LabelIndex
 extractLabel DeBruijnContext {..} k =
   coerce $ currentLevel - capturedLevels ! k - 1
 
+data LocalContext = LocalContext
+  { localCount :: Map.Map ValueType Word32
+  , localMap :: Map.Map BinaryenIndex Word32
+  }
+
+emptyLocalContext :: LocalContext
+emptyLocalContext = LocalContext {localCount = mempty, localMap = mempty}
+
+makeLocalContext :: Module -> Function -> LocalContext
+makeLocalContext Module {..} Function {..} =
+  snd $
+  foldl'
+    (\(i, LocalContext {..}) (orig_vt, orig_i) ->
+       ( succ i
+       , LocalContext
+           { localCount =
+               Map.alter
+                 (Just . \case
+                    Just c -> succ c
+                    _ -> 1)
+                 orig_vt
+                 localCount
+           , localMap = Map.insert orig_i i localMap
+           }))
+    (arity, emptyLocalContext) $
+  sort $ zip varTypes [arity ..]
+  where
+    arity =
+      fromIntegral $ length $ paramTypes (functionTypeMap ! functionTypeName)
+
+lookupLocalContext :: LocalContext -> BinaryenIndex -> Wasm.LocalIndex
+lookupLocalContext LocalContext {..} i =
+  coerce $
+  case Map.lookup i localMap of
+    Just j -> j
+    _ -> i
+
 -- TODO: reduce infer usage
 makeInstructions ::
      MonadError MarshalError m
   => ModuleSymbolTable
   -> DeBruijnContext
+  -> LocalContext
   -> Expression
   -> m (DList.DList Wasm.Instruction)
-makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
+makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx _local_ctx expr =
   case expr of
     Block {..} -> do
       let _new_de_bruijn_ctx = bindLabel name _de_bruijn_ctx
-      bs <- for bodys $ makeInstructions _module_symtable _new_de_bruijn_ctx
+      bs <-
+        for bodys $
+        makeInstructions _module_symtable _new_de_bruijn_ctx _local_ctx
       pure $
         DList.singleton
           Wasm.Block
@@ -232,13 +272,13 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
             }
     If {..} -> do
       let _new_de_bruijn_ctx = bindLabel mempty _de_bruijn_ctx
-      c <- makeInstructions _module_symtable _de_bruijn_ctx condition
+      c <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx condition
       t <-
         DList.toList <$>
-        makeInstructions _module_symtable _new_de_bruijn_ctx ifTrue
+        makeInstructions _module_symtable _new_de_bruijn_ctx _local_ctx ifTrue
       f <-
         DList.toList <$>
-        makeInstructions _module_symtable _new_de_bruijn_ctx ifFalse
+        makeInstructions _module_symtable _new_de_bruijn_ctx _local_ctx ifFalse
       pure $
         c <>
         DList.singleton
@@ -252,7 +292,7 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
             }
     Loop {..} -> do
       let _new_de_bruijn_ctx = bindLabel name _de_bruijn_ctx
-      b <- makeInstructions _module_symtable _new_de_bruijn_ctx body
+      b <- makeInstructions _module_symtable _new_de_bruijn_ctx _local_ctx body
       pure $
         DList.singleton
           Wasm.Loop {loopResultType = [], loopInstructions = DList.toList b}
@@ -261,10 +301,15 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
       case condition of
         Null -> pure $ DList.singleton Wasm.Branch {branchLabel = _lbl}
         _ -> do
-          c <- makeInstructions _module_symtable _de_bruijn_ctx condition
+          c <-
+            makeInstructions
+              _module_symtable
+              _de_bruijn_ctx
+              _local_ctx
+              condition
           pure $ c <> DList.singleton Wasm.BranchIf {branchIfLabel = _lbl}
     Switch {..} -> do
-      c <- makeInstructions _module_symtable _de_bruijn_ctx condition
+      c <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx condition
       pure $
         c <>
         DList.singleton
@@ -273,30 +318,46 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
             , branchTableFallbackLabel = extractLabel _de_bruijn_ctx defaultName
             }
     Call {..} -> do
-      xs <- for operands $ makeInstructions _module_symtable _de_bruijn_ctx
+      xs <-
+        for operands $
+        makeInstructions _module_symtable _de_bruijn_ctx _local_ctx
       pure $
         mconcat xs <>
         DList.singleton
           Wasm.Call {callFunctionIndex = functionSymbols ! coerce target}
     CallImport {..} -> do
-      xs <- for operands $ makeInstructions _module_symtable _de_bruijn_ctx
+      xs <-
+        for operands $
+        makeInstructions _module_symtable _de_bruijn_ctx _local_ctx
       pure $
         mconcat xs <>
         DList.singleton
           Wasm.Call {callFunctionIndex = functionSymbols ! target'}
     CallIndirect {..} -> do
-      f <- makeInstructions _module_symtable _de_bruijn_ctx indirectTarget
-      xs <- for operands $ makeInstructions _module_symtable _de_bruijn_ctx
+      f <-
+        makeInstructions
+          _module_symtable
+          _de_bruijn_ctx
+          _local_ctx
+          indirectTarget
+      xs <-
+        for operands $
+        makeInstructions _module_symtable _de_bruijn_ctx _local_ctx
       pure $
         mconcat xs <> f <>
         DList.singleton
           Wasm.CallIndirect
             {callIndirectFuctionTypeIndex = functionTypeSymbols ! typeName}
     GetLocal {..} ->
-      pure $ DList.singleton Wasm.GetLocal {getLocalIndex = coerce index}
+      pure $
+      DList.singleton
+        Wasm.GetLocal {getLocalIndex = lookupLocalContext _local_ctx index}
     SetLocal {..} -> do
-      v <- makeInstructions _module_symtable _de_bruijn_ctx value
-      pure $ v <> DList.singleton Wasm.SetLocal {setLocalIndex = coerce index}
+      v <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx value
+      pure $
+        v <>
+        DList.singleton
+          Wasm.SetLocal {setLocalIndex = lookupLocalContext _local_ctx index}
     Load {..} -> do
       let _mem_arg =
             Wasm.MemoryArgument
@@ -319,7 +380,7 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
           (True, 4, I64) -> pure $ Wasm.I64Load32Signed _mem_arg
           (False, 4, I64) -> pure $ Wasm.I64Load32Unsigned _mem_arg
           _ -> throwError $ UnsupportedExpression expr
-      p <- makeInstructions _module_symtable _de_bruijn_ctx ptr
+      p <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx ptr
       pure $ p <> op
     Store {..} -> do
       let _mem_arg =
@@ -338,15 +399,15 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
           (2, I64) -> pure $ Wasm.I64Store16 _mem_arg
           (4, I64) -> pure $ Wasm.I64Store32 _mem_arg
           _ -> throwError $ UnsupportedExpression expr
-      p <- makeInstructions _module_symtable _de_bruijn_ctx ptr
-      v <- makeInstructions _module_symtable _de_bruijn_ctx value
+      p <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx ptr
+      v <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx value
       pure $ p <> v <> op
     ConstI32 v -> pure $ DList.singleton Wasm.I32Const {i32ConstValue = v}
     ConstI64 v -> pure $ DList.singleton Wasm.I64Const {i64ConstValue = v}
     ConstF32 v -> pure $ DList.singleton Wasm.F32Const {f32ConstValue = v}
     ConstF64 v -> pure $ DList.singleton Wasm.F64Const {f64ConstValue = v}
     Unary {..} -> do
-      x <- makeInstructions _module_symtable _de_bruijn_ctx operand0
+      x <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx operand0
       op <-
         DList.singleton <$>
         case unaryOp of
@@ -399,8 +460,8 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
           ReinterpretInt64 -> pure Wasm.F64ReinterpretFromI64
       pure $ x <> op
     Binary {..} -> do
-      x <- makeInstructions _module_symtable _de_bruijn_ctx operand0
-      y <- makeInstructions _module_symtable _de_bruijn_ctx operand1
+      x <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx operand0
+      y <- makeInstructions _module_symtable _de_bruijn_ctx _local_ctx operand1
       op <-
         DList.singleton <$>
         case binaryOp of
@@ -487,7 +548,9 @@ makeInstructions _module_symtable@ModuleSymbolTable {..} _de_bruijn_ctx expr =
             case hostOp of
               CurrentMemory -> Wasm.MemorySize
               GrowMemory -> Wasm.MemoryGrow
-      xs <- for operands $ makeInstructions _module_symtable _de_bruijn_ctx
+      xs <-
+        for operands $
+        makeInstructions _module_symtable _de_bruijn_ctx _local_ctx
       pure $ mconcat xs <> op
     Nop -> pure $ DList.singleton Wasm.Nop
     Unreachable -> pure $ DList.singleton Wasm.Unreachable
@@ -503,24 +566,27 @@ flattenOneLayer expr =
 
 makeCodeSection ::
      MonadError MarshalError m => Module -> ModuleSymbolTable -> m Wasm.Section
-makeCodeSection Module {..} _module_symtable =
+makeCodeSection _mod@Module {..} _module_symtable =
   fmap Wasm.CodeSection $
-  for (Map.elems functionMap') $ \Function {..} -> do
+  for (Map.elems functionMap') $ \_func@Function {..} -> do
+    let _local_ctx@LocalContext {..} = makeLocalContext _mod _func
     _locals <-
-      for varTypes $ \case
-        None -> throwError InvalidLocalType
-        I32 -> pure Wasm.I32
-        I64 -> pure Wasm.I64
-        F32 -> pure Wasm.F32
-        F64 -> pure Wasm.F64
+      for (Map.toList localCount) $ \case
+        (None, _) -> throwError InvalidLocalType
+        (I32, c) -> pure (Wasm.I32, c)
+        (I64, c) -> pure (Wasm.I64, c)
+        (F32, c) -> pure (Wasm.F32, c)
+        (F64, c) -> pure (Wasm.F64, c)
     _body <-
       fmap mconcat $
       for (flattenOneLayer body) $
-      makeInstructions _module_symtable emptyDeBruijnContext
+      makeInstructions _module_symtable emptyDeBruijnContext _local_ctx
     pure
       Wasm.Function
         { functionLocals =
-            [Wasm.Locals {localsCount = 1, localsType = vt} | vt <- _locals]
+            [ Wasm.Locals {localsCount = c, localsType = vt}
+            | (vt, c) <- _locals
+            ]
         , functionBody = coerce $ DList.toList _body
         }
 
@@ -532,7 +598,11 @@ makeDataSection Module {..} _module_symtable =
       segs <-
         for dataSegments $ \DataSegment {..} -> do
           instrs <-
-            makeInstructions _module_symtable emptyDeBruijnContext offset
+            makeInstructions
+              _module_symtable
+              emptyDeBruijnContext
+              emptyLocalContext
+              offset
           pure
             Wasm.DataSegment
               { memoryIndex = Wasm.MemoryIndex 0
